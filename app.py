@@ -1,5 +1,4 @@
 import os
-import base64
 from flask import Flask, request, abort, send_from_directory
 from linebot import LineBotApi, WebhookHandler
 from linebot.models import (
@@ -7,7 +6,8 @@ from linebot.models import (
 )
 from linebot.models.events import PostbackEvent
 from linebot.exceptions import InvalidSignatureError
-from github import Github
+from imgurpython import ImgurClient
+from imgurpython.helpers.error import ImgurClientRateLimitError
 import time
 
 app = Flask(__name__)
@@ -16,11 +16,6 @@ app = Flask(__name__)
 line_bot_api = LineBotApi('Xe4goaDprmptFyFWzYrTxX5TwO6bzAnvYrIGUGDxpE29pTzXeBmDmgsmLOlWSgmdAT8Kwh3ujnKC3InLDoStESGARbqQ3qTkNPlxNnqXIgrsIGSmEe7pKH4RmDzELH4mUoDhqEfdOOk++ACz8MsuegdB04t89/1O/w1cDnyilFU=')
 handler = WebhookHandler('8763f65621c328f70d1334b4d4758e46')
 GROUP_ID = 'C1e11e203e527b7f8e9bcb2d4437925b8'  # 初始群組ID
-
-# GitHub API credentials
-GITHUB_TOKEN = os.getenv('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')  # 從環境變數中讀取
-g = Github(GITHUB_TOKEN)
-repo = g.get_repo("xuan0425/123456")  # 替換為您的 GitHub 用戶名和倉庫名稱
 
 @app.route('/callback', methods=['POST'])
 def callback():
@@ -73,25 +68,19 @@ def handle_text_message(event):
         else:
             image_path = pending_texts[user_id]['image_path']
             text_message = user_message
-            github_url = upload_image_to_github(image_path)
+            imgur_url = upload_image_to_imgur(image_path)
 
-            if github_url:
-                try:
-                    line_bot_api.push_message(
-                        GROUP_ID,
-                        [ImageSendMessage(
-                            original_content_url=github_url,
-                            preview_image_url=github_url
-                        ), TextSendMessage(text=text_message)]
-                    )
-                    print('Image and text successfully sent to group.')
-                except Exception as e:
-                    print(f'Error sending image and text to group: {e}')
-            else:
-                line_bot_api.reply_message(
-                    event.reply_token,
-                    TextSendMessage(text='圖片上傳失敗，請稍後再試。')
+            try:
+                line_bot_api.push_message(
+                    GROUP_ID,
+                    [ImageSendMessage(
+                        original_content_url=imgur_url,
+                        preview_image_url=imgur_url
+                    ), TextSendMessage(text=text_message)]
                 )
+                print('Image and text successfully sent to group.')
+            except Exception as e:
+                print(f'Error sending image and text to group: {e}')
 
             # Delete local image
             os.remove(image_path)
@@ -148,31 +137,25 @@ def handle_postback(event):
 
     if user_id in pending_texts:
         image_path = pending_texts[user_id]['image_path']
+        imgur_url = upload_image_to_imgur(image_path)
 
         if data == 'send_image':
-            github_url = upload_image_to_github(image_path)
-            if github_url:
-                try:
-                    line_bot_api.push_message(
-                        GROUP_ID,
-                        ImageSendMessage(
-                            original_content_url=github_url,
-                            preview_image_url=github_url
-                        )
+            try:
+                line_bot_api.push_message(
+                    GROUP_ID,
+                    ImageSendMessage(
+                        original_content_url=imgur_url,
+                        preview_image_url=imgur_url
                     )
-                    print('Image successfully sent to group.')
-                except Exception as e:
-                    print(f'Error sending image to group: {e}')
-            else:
-                line_bot_api.reply_message(
-                    event.reply_token,
-                    TextSendMessage(text='圖片上傳失敗，請稍後再試。')
                 )
+                print('Image successfully sent to group.')
+            except Exception as e:
+                print(f'Error sending image to group: {e}')
 
-            # Delete local image and pending status
+            # Delete local image
             os.remove(image_path)
             del pending_texts[user_id]
-
+        
         elif data == 'add_text':
             line_bot_api.reply_message(
                 event.reply_token,
@@ -182,66 +165,21 @@ def handle_postback(event):
 # Store users' pending status
 pending_texts = {}
 
-def upload_image_to_github(image_path):
-    image_name = os.path.basename(image_path)
-    with open(image_path, "rb") as img_file:
-        content = img_file.read()
-        encoded_content = base64.b64encode(content).decode()
+def upload_image_to_imgur(image_path):
+    client_id = '6aab1dd4cdc087c'
+    client_secret = 'a77d39b7994e6ad35be36bb564c907bf289ceb18'
+    client = ImgurClient(client_id, client_secret)
 
-    # 獲取默認分支名稱
-    default_branch = repo.default_branch
-
-    # 構建文件路徑
-    file_path = f"images/{image_name}"
-
-    # 檢查文件是否已存在
     try:
-        existing_file = repo.get_contents(file_path, ref=default_branch)
-        print(f"File {file_path} already exists.")
-        # 如果文件已存在，可以選擇不重新上傳，直接返回現有的URL
-        # 或者根據需求進行更新。此處選擇不重新上傳
-        return f"https://raw.githubusercontent.com/{repo.full_name}/{default_branch}/{file_path}"
-    except github.GithubException.GithubException as e:
-        if e.status == 404:
-            # 文件不存在，創建新文件
-            try:
-                repo.create_file(file_path, "Upload image", encoded_content, branch=default_branch)
-                print(f"Image uploaded to GitHub: {file_path}")
-            except Exception as upload_error:
-                print(f"Error uploading image: {upload_error}")
-                return None
-        else:
-            # 其他錯誤
-            print(f"Error checking file existence: {e}")
-            return None
-
-    # 刪除舊圖片，如果超過5張
-    delete_old_images()
-
-    # 返回圖片的 raw URL
-    return f"https://raw.githubusercontent.com/{repo.full_name}/{default_branch}/{file_path}"
-
-def delete_old_images():
-    try:
-        contents = repo.get_contents("images", ref=repo.default_branch)
-        files = repo.get_contents("images", ref=repo.default_branch)
-
-        # 如果 'images' 是文件夾，使用 repo.get_contents("images")
-        files = repo.get_contents("images", ref=repo.default_branch)
-
-        # 按照創建時間排序
-        sorted_files = sorted(files, key=lambda x: x.last_modified if hasattr(x, 'last_modified') else x.created_at)
-
-        if len(sorted_files) > 5:
-            # 刪除最舊的文件
-            oldest_file = sorted_files[0]
-            repo.delete_file(oldest_file.path, "Delete old image", oldest_file.sha)
-            print(f"Deleted old image: {oldest_file.path}")
+        response = client.upload_from_path(image_path, anon=True)
+        return response['link']
+    except ImgurClientRateLimitError:
+        print("Imgur rate limit exceeded. Waiting before retrying...")
+        time.sleep(60)  # Wait 60 seconds before retrying
+        return upload_image_to_imgur(image_path)  # Retry uploading
     except Exception as e:
-        print(f"Error deleting old images: {e}")
+        print(f"Error uploading image: {e}")
+        return None
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))
-    app.run(host='0.0.0.0', port=port)
-
-
+    app.run(host='0.0.0.0', port=10000)
