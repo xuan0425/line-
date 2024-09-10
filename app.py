@@ -18,7 +18,7 @@ handler = WebhookHandler('8763f65621c328f70d1334b4d4758e46')
 GROUP_ID = 'C1e11e203e527b7f8e9bcb2d4437925b8'  # 初始群組ID
 
 # GitHub API credentials
-GITHUB_TOKEN = os.getenv('GITHUB_TOKEN')  # 從環境變數中讀取
+GITHUB_TOKEN = os.getenv('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')  # 從環境變數中讀取
 g = Github(GITHUB_TOKEN)
 repo = g.get_repo("xuan0425/123456")  # 替換為您的 GitHub 用戶名和倉庫名稱
 
