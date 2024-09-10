@@ -23,8 +23,6 @@ def callback():
     signature = request.headers['X-Line-Signature']
     body = request.get_data(as_text=True)
 
-    print(f"Received request body: {body}")
-
     try:
         handler.handle(body, signature)
     except InvalidSignatureError:
@@ -41,8 +39,6 @@ def handle_text_message(event):
     global GROUP_ID
     user_message = event.message.text
 
-    print(f"Received message: {user_message}")
-
     # Check if the message is the command to set the group ID
     if user_message.startswith('/設定群組'):
         if event.source.type == 'group':
@@ -51,14 +47,12 @@ def handle_text_message(event):
                 event.reply_token,
                 TextSendMessage(text=f"群組ID已更新為：{GROUP_ID}")
             )
-            print(f"Group ID updated to: {GROUP_ID}")
         else:
             line_bot_api.reply_message(
                 event.reply_token,
                 TextSendMessage(text="此指令只能在群組中使用。")
             )
     elif event.source.user_id in pending_texts:
-        # Handle text message for adding text
         user_id = event.source.user_id
         if user_message.lower() == '取消':
             del pending_texts[user_id]
@@ -74,10 +68,6 @@ def handle_text_message(event):
             upload_thread = threading.Thread(target=upload_and_send_image, args=(user_id, image_path, text_message))
             upload_thread.start()
 
-            # 刪除本地圖片
-            # os.remove(image_path)
-            # del pending_texts[user_id]
-
 def upload_and_send_image(user_id, image_path, text_message):
     imgur_url = upload_image_to_imgur(image_path)
 
@@ -90,7 +80,12 @@ def upload_and_send_image(user_id, image_path, text_message):
                     preview_image_url=imgur_url
                 ), TextSendMessage(text=text_message)]
             )
-            print('Image and text successfully sent to group.')
+
+            # 回覆用戶發送成功
+            line_bot_api.reply_message(
+                user_id,
+                TextSendMessage(text='圖片和文字已成功發送到群組。')
+            )
         except Exception as e:
             print(f'Error sending image and text to group: {e}')
 
@@ -112,8 +107,6 @@ def handle_image_message(event):
     with open(image_path, 'wb') as fd:
         for chunk in image_content.iter_content():
             fd.write(chunk)
-
-    print(f'Image successfully downloaded to {image_path}')
 
     # Store user's pending status
     pending_texts[user_id] = {'image_path': image_path}
@@ -153,7 +146,6 @@ def handle_postback(event):
 
         if data == 'send_image':
             try:
-                # 發送圖片到群組
                 line_bot_api.push_message(
                     GROUP_ID,
                     ImageSendMessage(
@@ -161,8 +153,7 @@ def handle_postback(event):
                         preview_image_url=imgur_url
                     )
                 )
-                print('Image successfully sent to group.')
-                
+
                 # 回覆用戶發送成功
                 line_bot_api.reply_message(
                     event.reply_token,
@@ -171,7 +162,7 @@ def handle_postback(event):
             except Exception as e:
                 print(f'Error sending image to group: {e}')
 
-            # 刪除本地圖片
+            # Delete local image
             os.remove(image_path)
             del pending_texts[user_id]
         
@@ -180,7 +171,6 @@ def handle_postback(event):
                 event.reply_token,
                 TextSendMessage(text='請發送您想轉發的文字。')
             )
-
 
 # Store users' pending status
 pending_texts = {}
