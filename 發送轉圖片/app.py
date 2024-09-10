@@ -19,6 +19,8 @@ def callback():
     signature = request.headers['X-Line-Signature']
     body = request.get_data(as_text=True)
 
+    print(f"Received request body: {body}")
+
     try:
         handler.handle(body, signature)
     except InvalidSignatureError:
@@ -35,7 +37,8 @@ def handle_text_message(event):
     global GROUP_ID
     user_message = event.message.text
 
-    # 檢查是否為設定群組的指令
+    print(f"Received message: {user_message} from {event.source.type}")
+
     if user_message.startswith('/設定群組'):
         if event.source.type == 'group':
             GROUP_ID = event.source.group_id
@@ -52,6 +55,7 @@ def handle_text_message(event):
     else:
         # 忽略其他文字訊息
         pass
+
 
 @handler.add(MessageEvent, message=ImageMessage)
 def handle_image_message(event):
@@ -174,11 +178,11 @@ def upload_image_to_imgur(image_path):
     from imgurpython import ImgurClient
 
     client_id = '6aab1dd4cdc087c'
-    client_secret = '8c87a33fbfc3c743b479f49acb5d4392a4ebb5a5'
+    client_secret = 'a77d39b7994e6ad35be36bb564c907bf289ceb18	'
     client = ImgurClient(client_id, client_secret)
 
     response = client.upload_from_path(image_path, anon=True)
     return response['link']
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=5000)
+    app.run(host='0.0.0.0', port=10000)
