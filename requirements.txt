@@ -1,4 +1,4 @@
-flask
-line-bot-sdk
+Flask
+line-bot-sdk==3.1.0
 imgurpython
 gunicorn
