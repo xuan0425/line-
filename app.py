@@ -174,11 +174,11 @@ def upload_image_to_imgur(image_path):
     from imgurpython import ImgurClient
 
     client_id = '6aab1dd4cdc087c'
-    client_secret = '8c87a33fbfc3c743b479f49acb5d4392a4ebb5a5'
+    client_secret = 'a77d39b7994e6ad35be36bb564c907bf289ceb18	'
     client = ImgurClient(client_id, client_secret)
 
     response = client.upload_from_path(image_path, anon=True)
     return response['link']
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=5000)
+    app.run(host='0.0.0.0', port=10000)
