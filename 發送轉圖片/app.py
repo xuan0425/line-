@@ -12,7 +12,7 @@ app = Flask(__name__)
 # LINE Bot API credentials
 line_bot_api = LineBotApi('Xe4goaDprmptFyFWzYrTxX5TwO6bzAnvYrIGUGDxpE29pTzXeBmDmgsmLOlWSgmdAT8Kwh3ujnKC3InLDoStESGARbqQ3qTkNPlxNnqXIgrsIGSmEe7pKH4RmDzELH4mUoDhqEfdOOk++ACz8MsuegdB04t89/1O/w1cDnyilFU=')
 handler = WebhookHandler('8763f65621c328f70d1334b4d4758e46')
-GROUP_ID = 'C1b583c38ba492359f2c2cf8ca1d1e800'  # 初始群組ID
+GROUP_ID = 'C1e11e203e527b7f8e9bcb2d4437925b8'  # 初始群組ID
 
 @app.route('/callback', methods=['POST'])
 def callback():
@@ -37,8 +37,10 @@ def handle_text_message(event):
     global GROUP_ID
     user_message = event.message.text
 
-    print(f"Received message: {user_message} from {event.source.type}")
+    # 打印接收到的消息
+    print(f"Received message: {user_message}")
 
+    # 檢查是否為設定群組的指令
     if user_message.startswith('/設定群組'):
         if event.source.type == 'group':
             GROUP_ID = event.source.group_id
