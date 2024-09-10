@@ -1,4 +1,5 @@
 import os
+import base64
 from flask import Flask, request, abort, send_from_directory
 from linebot import LineBotApi, WebhookHandler
 from linebot.models import (
@@ -6,9 +7,7 @@ from linebot.models import (
 )
 from linebot.models.events import PostbackEvent
 from linebot.exceptions import InvalidSignatureError
-from imgurpython import ImgurClient
-from imgurpython.helpers.error import ImgurClientRateLimitError
-import time
+from github import Github
 
 app = Flask(__name__)
 
@@ -16,6 +15,10 @@ app = Flask(__name__)
 line_bot_api = LineBotApi('Xe4goaDprmptFyFWzYrTxX5TwO6bzAnvYrIGUGDxpE29pTzXeBmDmgsmLOlWSgmdAT8Kwh3ujnKC3InLDoStESGARbqQ3qTkNPlxNnqXIgrsIGSmEe7pKH4RmDzELH4mUoDhqEfdOOk++ACz8MsuegdB04t89/1O/w1cDnyilFU=')
 handler = WebhookHandler('8763f65621c328f70d1334b4d4758e46')
 GROUP_ID = 'C1e11e203e527b7f8e9bcb2d4437925b8'  # 初始群組ID
+
+# GitHub API credentials
+g = Github("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")
+repo = g.get_repo("xuan0425/123456")
 
 @app.route('/callback', methods=['POST'])
 def callback():
@@ -68,14 +71,14 @@ def handle_text_message(event):
         else:
             image_path = pending_texts[user_id]['image_path']
             text_message = user_message
-            imgur_url = upload_image_to_imgur(image_path)
+            github_url = upload_image_to_github(image_path)
 
             try:
                 line_bot_api.push_message(
                     GROUP_ID,
                     [ImageSendMessage(
-                        original_content_url=imgur_url,
-                        preview_image_url=imgur_url
+                        original_content_url=github_url,
+                        preview_image_url=github_url
                     ), TextSendMessage(text=text_message)]
                 )
                 print('Image and text successfully sent to group.')
@@ -137,15 +140,15 @@ def handle_postback(event):
 
     if user_id in pending_texts:
         image_path = pending_texts[user_id]['image_path']
-        imgur_url = upload_image_to_imgur(image_path)
+        github_url = upload_image_to_github(image_path)
 
         if data == 'send_image':
             try:
                 line_bot_api.push_message(
                     GROUP_ID,
                     ImageSendMessage(
-                        original_content_url=imgur_url,
-                        preview_image_url=imgur_url
+                        original_content_url=github_url,
+                        preview_image_url=github_url
                     )
                 )
                 print('Image successfully sent to group.')
@@ -165,21 +168,30 @@ def handle_postback(event):
 # Store users' pending status
 pending_texts = {}
 
-def upload_image_to_imgur(image_path):
-    client_id = '6aab1dd4cdc087c'
-    client_secret = 'a77d39b7994e6ad35be36bb564c907bf289ceb18'
-    client = ImgurClient(client_id, client_secret)
+def upload_image_to_github(image_path):
+    image_name = os.path.basename(image_path)
+    with open(image_path, "rb") as img_file:
+        content = img_file.read()
+        encoded_content = base64.b64encode(content).decode()
 
-    try:
-        response = client.upload_from_path(image_path, anon=True)
-        return response['link']
-    except ImgurClientRateLimitError:
-        print("Imgur rate limit exceeded. Waiting before retrying...")
-        time.sleep(60)  # Wait 60 seconds before retrying
-        return upload_image_to_imgur(image_path)  # Retry uploading
-    except Exception as e:
-        print(f"Error uploading image: {e}")
-        return None
+    # Upload image to GitHub repository's images directory
+    repo.create_file(f"images/{image_name}", "Upload image", encoded_content)
+    print(f"Image uploaded to GitHub: images/{image_name}")
+
+    # Delete old images if more than 5
+    delete_old_images()
+
+    # Return the raw URL of the image
+    return f"https://raw.githubusercontent.com/{repo.full_name}/main/images/{image_name}"
+
+def delete_old_images():
+    files = repo.get_contents("images")
+    if len(files) > 5:
+        # Delete the oldest image
+        sorted_files = sorted(files, key=lambda x: x.created_at)
+        oldest_file = sorted_files[0]
+        repo.delete_file(oldest_file.path, "Delete old image", oldest_file.sha)
+        print(f"Deleted old image: {oldest_file.path}")
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=10000)
