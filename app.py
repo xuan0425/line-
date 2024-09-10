@@ -1,4 +1,5 @@
 import os
+import threading
 from flask import Flask, request, abort, send_from_directory
 from linebot import LineBotApi, WebhookHandler
 from linebot.models import (
@@ -68,23 +69,34 @@ def handle_text_message(event):
         else:
             image_path = pending_texts[user_id]['image_path']
             text_message = user_message
-            imgur_url = upload_image_to_imgur(image_path)
+            
+            # 使用 threading 執行上傳操作
+            upload_thread = threading.Thread(target=upload_and_send_image, args=(user_id, image_path, text_message))
+            upload_thread.start()
 
-            try:
-                line_bot_api.push_message(
-                    GROUP_ID,
-                    [ImageSendMessage(
-                        original_content_url=imgur_url,
-                        preview_image_url=imgur_url
-                    ), TextSendMessage(text=text_message)]
-                )
-                print('Image and text successfully sent to group.')
-            except Exception as e:
-                print(f'Error sending image and text to group: {e}')
+            # 刪除本地圖片
+            # os.remove(image_path)
+            # del pending_texts[user_id]
 
-            # Delete local image
-            os.remove(image_path)
-            del pending_texts[user_id]
+def upload_and_send_image(user_id, image_path, text_message):
+    imgur_url = upload_image_to_imgur(image_path)
+
+    if imgur_url:
+        try:
+            line_bot_api.push_message(
+                GROUP_ID,
+                [ImageSendMessage(
+                    original_content_url=imgur_url,
+                    preview_image_url=imgur_url
+                ), TextSendMessage(text=text_message)]
+            )
+            print('Image and text successfully sent to group.')
+        except Exception as e:
+            print(f'Error sending image and text to group: {e}')
+
+        # 刪除本地圖片
+        os.remove(image_path)
+        del pending_texts[user_id]
 
 @handler.add(MessageEvent, message=ImageMessage)
 def handle_image_message(event):
@@ -146,6 +158,7 @@ def handle_postback(event):
                     ImageSendMessage(
                         original_content_url=imgur_url,
                         preview_image_url=imgur_url
+                        TextSendMessage(text='發送成功。')
                     )
                 )
                 print('Image successfully sent to group.')
