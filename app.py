@@ -153,19 +153,25 @@ def handle_postback(event):
 
         if data == 'send_image':
             try:
+                # 發送圖片到群組
                 line_bot_api.push_message(
                     GROUP_ID,
                     ImageSendMessage(
                         original_content_url=imgur_url,
                         preview_image_url=imgur_url
-                        TextSendMessage(text='發送成功。')
                     )
                 )
                 print('Image successfully sent to group.')
+                
+                # 回覆用戶發送成功
+                line_bot_api.reply_message(
+                    event.reply_token,
+                    TextSendMessage(text='圖片已成功發送到群組。')
+                )
             except Exception as e:
                 print(f'Error sending image to group: {e}')
 
-            # Delete local image
+            # 刪除本地圖片
             os.remove(image_path)
             del pending_texts[user_id]
         
@@ -174,6 +180,7 @@ def handle_postback(event):
                 event.reply_token,
                 TextSendMessage(text='請發送您想轉發的文字。')
             )
+
 
 # Store users' pending status
 pending_texts = {}
