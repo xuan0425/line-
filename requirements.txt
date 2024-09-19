@@ -1,3 +1,4 @@
+flask
 quart==0.18.1
 line-bot-sdk==3.1.0
 imgurpython
