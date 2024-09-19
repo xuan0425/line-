@@ -1,6 +1,4 @@
-Flask
 quart==0.18.1
---upgrade quart
 line-bot-sdk==3.1.0
 imgurpython
 gunicorn
@@ -9,8 +7,5 @@ aiohttp
 uvicorn
 gevent
 eventlet
-flask[async]
-line-bot-sdk
 werkzeug==2.3.0
---upgrade werkzeug
 hypercorn
