@@ -19,7 +19,7 @@ handler = WebhookHandler('8763f65621c328f70d1334b4d4758e46')
 async def callback():
     signature = request.headers.get('X-Line-Signature')
     body = await request.get_data(as_text=True)
-
+    
     try:
         await handle_event(body, signature)
     except InvalidSignatureError:
@@ -31,8 +31,12 @@ async def callback():
     return 'OK'
 
 async def handle_event(body, signature):
-    if handler is not None:
-        await handler.handle(body, signature)
+    if handler:
+        try:
+            await handler.handle(body, signature)
+        except Exception as e:
+            logging.error(f"Error while handling event: {e}", exc_info=True)
+            raise
     else:
         logging.error("WebhookHandler instance is None")
 
