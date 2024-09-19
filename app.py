@@ -1,6 +1,5 @@
 import os
 import aiohttp
-import asyncio
 from flask import Flask, request, abort, send_from_directory, jsonify
 from linebot import LineBotApi, WebhookHandler
 from linebot.models import (
@@ -12,7 +11,7 @@ from linebot.exceptions import InvalidSignatureError
 app = Flask(__name__)
 
 # LINE Bot API credentials
-line_bot_api = LineBotApi('Xe4goaDprmptFyFWzYrTxX5TwO6bzAnvYrIGUGDxpE29pTzXeBmDmgsmLOlWSgmdAT8Kwh3ujnKC3InLDoStESGARbqQ3qTkNPlxNnqXIgrsIGSmEe7pKH4RmDzELH4mUoDhqEfdOOk++ACz8MsuegdB04t89/1O/w1cDnyilFU=') 
+line_bot_api = LineBotApi('Xe4goaDprmptFyFWzYrTxX5TwO6bzAnvYrIGUGDxpE29pTzXeBmDmgsmLOlWSgmdAT8Kwh3ujnKC3InLDoStESGARbqQ3qTkNPlxNnqXIgrsIGSmEe7pKH4RmDzELH4mUoDhqEfdOOk++ACz8MsuegdB04t89/1O/w1cDnyilFU=')
 handler = WebhookHandler('8763f65621c328f70d1334b4d4758e46')
 GROUP_ID = 'C1e11e203e527b7f8e9bcb2d4437925b8'  # 初始群組ID
 
@@ -23,20 +22,13 @@ def callback():
     body = request.get_data(as_text=True)
     
     try:
-        await handler.handle(body, signature)
+        handler.handle(body, signature)
     except InvalidSignatureError:
         abort(400)
     except Exception as e:
         print(f"Error in callback: {e}")
         return jsonify({'error': str(e)}), 500
     return 'OK'
-
-
-async def handle_event(data):
-    signature = request.headers.get('X-Line-Signature')
-    body = request.get_data(as_text=True)
-    await handler.handle(body, signature)
-
 
 @app.route('/<filename>')
 def serve_static(filename):
@@ -47,22 +39,21 @@ def index():
     return "LINE bot is running!"
 
 @handler.add(MessageEvent, message=TextMessage)
-await handle_text_message(event):
+def handle_text_message(event):
     user_message = event.message.text
-
     print(f"Received message: {user_message}")
 
     if user_message.startswith('/設定群組'):
         if event.source.type == 'group':
             global GROUP_ID
             GROUP_ID = event.source.group_id
-            await line_bot_api.reply_message(
+            line_bot_api.reply_message(
                 event.reply_token,
                 TextSendMessage(text=f"群組ID已更新為：{GROUP_ID}")
             )
             print(f"Group ID updated to: {GROUP_ID}")
         else:
-            await line_bot_api.reply_message(
+            line_bot_api.reply_message(
                 event.reply_token,
                 TextSendMessage(text="此指令只能在群組中使用。")
             )
@@ -71,7 +62,7 @@ await handle_text_message(event):
         user_id = event.source.user_id
         if user_message.lower() == '取消':
             del pending_texts[user_id]
-            await line_bot_api.reply_message(
+            line_bot_api.reply_message(
                 event.reply_token,
                 TextSendMessage(text='操作已取消。')
             )
@@ -79,10 +70,10 @@ await handle_text_message(event):
             image_path = pending_texts[user_id]['image_path']
             text_message = user_message
             
-            imgur_url = await upload_image_to_imgur(image_path)
-            await send_image_to_group(imgur_url, user_id, text_message)
+            imgur_url = upload_image_to_imgur(image_path)
+            send_image_to_group(imgur_url, user_id, text_message)
 
-async def send_image_to_group(imgur_url, user_id, text_message=None):
+def send_image_to_group(imgur_url, user_id, text_message=None):
     if imgur_url:
         try:
             messages = [ImageSendMessage(
@@ -93,19 +84,19 @@ async def send_image_to_group(imgur_url, user_id, text_message=None):
             if text_message:
                 messages.append(TextSendMessage(text=text_message))
 
-            await line_bot_api.push_message(
+            line_bot_api.push_message(
                 GROUP_ID,
                 messages
             )
             print('Image and text successfully sent to group.')
 
             if text_message:
-                await line_bot_api.push_message(
+                line_bot_api.push_message(
                     user_id,
                     TextSendMessage(text='圖片和文字已成功發送到群組。')
                 )
             else:
-                await line_bot_api.push_message(
+                line_bot_api.push_message(
                     user_id,
                     TextSendMessage(text='圖片已成功發送到群組。')
                 )
@@ -116,7 +107,7 @@ async def send_image_to_group(imgur_url, user_id, text_message=None):
         del pending_texts[user_id]
 
 @handler.add(MessageEvent, message=ImageMessage)
-async def handle_image_message(event):
+def handle_image_message(event):
     user_id = event.source.user_id
     message_id = event.message.id
 
@@ -151,13 +142,13 @@ async def handle_image_message(event):
         alt_text='選擇操作',
         template=buttons_template
     )
-    await line_bot_api.reply_message(
+    line_bot_api.reply_message(
         event.reply_token,
         template_message
     )
 
 @handler.add(PostbackEvent)
-async def handle_postback(event):
+def handle_postback(event):
     user_id = event.source.user_id
     data = event.postback.data
 
@@ -165,10 +156,10 @@ async def handle_postback(event):
         image_path = pending_texts[user_id]['image_path']
 
         if data == 'send_image':
-            imgur_url = await upload_image_to_imgur(image_path)
+            imgur_url = upload_image_to_imgur(image_path)
 
             if imgur_url:
-                await line_bot_api.push_message(
+                line_bot_api.push_message(
                     GROUP_ID,
                     ImageSendMessage(
                         original_content_url=imgur_url,
@@ -177,7 +168,7 @@ async def handle_postback(event):
                 )
                 print('Image successfully sent to group.')
 
-                await line_bot_api.reply_message(
+                line_bot_api.reply_message(
                     event.reply_token,
                     TextSendMessage(text='圖片已成功發送到群組。')
                 )
@@ -186,29 +177,29 @@ async def handle_postback(event):
             del pending_texts[user_id]
         
         elif data == 'add_text':
-            await line_bot_api.reply_message(
+            line_bot_api.reply_message(
                 event.reply_token,
                 TextSendMessage(text='請發送您想轉發的文字。')
             )
 
 pending_texts = {}
 
-async def upload_image_to_imgur(image_path):
+def upload_image_to_imgur(image_path):
     client_id = '6aab1dd4cdc087c'
     headers = {'Authorization': f'Client-ID {client_id}'}
 
     try:
-        async with aiohttp.ClientSession() as session:
+        with aiohttp.ClientSession() as session:
             with open(image_path, 'rb') as image_file:
                 data = {'image': image_file}
-                async with session.post('https://api.imgur.com/3/upload', headers=headers, data=data) as response:
-                    if response.status == 200:
-                        response_json = await response.json()
-                        imgur_url = response_json['data']['link']
-                        return imgur_url
-                    else:
-                        print(f'Error uploading image to Imgur: {response.status}')
-                        return None
+                response = session.post('https://api.imgur.com/3/upload', headers=headers, data=data)
+                if response.status == 200:
+                    response_json = response.json()
+                    imgur_url = response_json['data']['link']
+                    return imgur_url
+                else:
+                    print(f'Error uploading image to Imgur: {response.status}')
+                    return None
     except Exception as e:
         print(f'Exception uploading image to Imgur: {e}')
         return None
