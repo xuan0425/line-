@@ -64,9 +64,8 @@ def handle_text_message(event):
             image_path = pending_texts[user_id]['image_path']
             text_message = user_message
 
-            imgur_url = await upload_image_to_postimage(image_path)
-            if imgur_url:
-                send_image_to_group(imgur_url, user_id, text_message)
+            # 使用異步方式調用上傳函數
+            socketio.start_background_task(upload_and_send_image, image_path, user_id, text_message)
 
 def send_image_to_group(imgur_url, user_id, text_message=None):
     if imgur_url:
@@ -131,7 +130,7 @@ def handle_image_message(event):
     )
 
 @handler.add(PostbackEvent)
-async def handle_postback(event):
+def handle_postback(event):
     user_id = event.source.user_id
     data = event.postback.data
 
@@ -139,25 +138,8 @@ async def handle_postback(event):
         image_path = pending_texts[user_id]['image_path']
 
         if data == 'send_image':
-            imgur_url = await upload_image_to_postimage(image_path)
-
-            if imgur_url:
-                line_bot_api.push_message(
-                    GROUP_ID,
-                    ImageSendMessage(
-                        original_content_url=imgur_url,
-                        preview_image_url=imgur_url
-                    )
-                )
-                print('Image successfully sent to group.')
-
-                line_bot_api.reply_message(
-                    event.reply_token,
-                    TextSendMessage(text='圖片已成功發送到群組。')
-                )
-
-            os.remove(image_path)
-            del pending_texts[user_id]
+            # 使用異步方式調用上傳函數
+            socketio.start_background_task(upload_and_send_image, image_path, user_id)
 
         elif data == 'add_text':
             line_bot_api.reply_message(
@@ -183,6 +165,11 @@ async def upload_image_to_postimage(image_path):
     except Exception as e:
         print(f'Exception uploading image to PostImage: {e}')
         return None
+
+async def upload_and_send_image(image_path, user_id, text_message=None):
+    imgur_url = await upload_image_to_postimage(image_path)
+    if imgur_url:
+        send_image_to_group(imgur_url, user_id, text_message)
 
 if __name__ == "__main__":
     app.run(port=10000)
