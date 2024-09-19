@@ -38,6 +38,7 @@ async def callback():
     return 'OK'
 
 async def handle_event(body, signature):
+    # Ensure that handler.handle is awaited properly
     await handler.handle(body, signature)
 
 @handler.add(MessageEvent, message=TextMessage)
