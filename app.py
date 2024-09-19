@@ -1,12 +1,12 @@
-import os
-import aiohttp
-import asyncio
 from quart import Quart, request, abort, send_from_directory, jsonify
 from linebot import LineBotApi, WebhookHandler
 from linebot.models import (
     MessageEvent, TextMessage, ImageMessage, ImageSendMessage, TextSendMessage, TemplateSendMessage, ButtonsTemplate, PostbackAction
 )
+from linebot.models.events import PostbackEvent
 from linebot.exceptions import InvalidSignatureError
+import aiohttp
+import os
 
 app = Quart(__name__)
 
