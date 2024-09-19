@@ -3,7 +3,7 @@ from linebot import AsyncLineBotApi, WebhookHandler
 from linebot.models import (
     MessageEvent, TextMessage, TextSendMessage,
     TemplateSendMessage, ButtonsTemplate,
-    PostbackAction, ImageMessage, ImageSendMessage
+    PostbackAction, ImageMessage, ImageSendMessage, PostbackEvent
 )
 from linebot.exceptions import InvalidSignatureError
 import httpx
