@@ -173,13 +173,15 @@ def upload_image_to_imgur(image_path):
         with open(image_path, 'rb') as image_file:
             data = {'image': image_file}
             response = httpx.post('https://api.imgur.com/3/upload', headers=headers, files=data)
+            print(f'Response status: {response.status_code}')
+            print(f'Response text: {response.text}')  # 打印响应文本
             response_json = response.json()
-            print(f'Imgur response: {response_json}')  # 打印完整的响应内容
             imgur_url = response_json['data']['link']
             return imgur_url
     except Exception as e:
         print(f'Exception uploading image to Imgur: {e}')
         return None
+
 
 if __name__ == "__main__":
     app.run(port=10000)
