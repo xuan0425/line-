@@ -7,11 +7,16 @@ from linebot.models import (
 )
 from linebot.models.events import PostbackEvent
 from linebot.exceptions import InvalidSignatureError
+from linebot.aiohttp_http_client import AioHttpClient
 import os
 import aiohttp
 
 app = Quart(__name__)
 
+# 創建非同步 HTTP 客戶端
+async_http_client = AioHttpClient()
+
+# 初始化 AsyncLineBotApi 並傳入 HTTP 客戶端
 line_bot_api = AsyncLineBotApi('Xe4goaDprmptFyFWzYrTxX5TwO6bzAnvYrIGUGDxpE29pTzXeBmDmgsmLOlWSgmdAT8Kwh3ujnKC3InLDoStESGARbqQ3qTkNPlxNnqXIgrsIGSmEe7pKH4RmDzELH4mUoDhqEfdOOk++ACz8MsuegdB04t89/1O/w1cDnyilFU=') 
 handler = WebhookHandler('8763f65621c328f70d1334b4d4758e46')
 GROUP_ID = 'C1e11e203e527b7f8e9bcb2d4437925b8'  # 初
