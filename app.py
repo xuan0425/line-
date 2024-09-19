@@ -3,10 +3,8 @@ from linebot import AsyncLineBotApi, WebhookHandler
 from linebot.models import (
     MessageEvent, TextMessage, TextSendMessage,
     TemplateSendMessage, ButtonsTemplate,
-    MessageAction, PostbackAction, ImageMessage,
-    ImageSendMessage
+    PostbackAction, ImageMessage, ImageSendMessage
 )
-from linebot.models.events import PostbackEvent
 from linebot.exceptions import InvalidSignatureError
 import os
 import aiohttp
@@ -14,9 +12,12 @@ import aiohttp
 app = Quart(__name__)
 
 # 初始化 AsyncLineBotApi
-line_bot_api = AsyncLineBotApi('Xe4goaDprmptFyFWzYrTxX5TwO6bzAnvYrIGUGDxpE29pTzXeBmDmgsmLOlWSgmdAT8Kwh3ujnKC3InLDoStESGARbqQ3qTkNPlxNnqXIgrsIGSmEe7pKH4RmDzELH4mUoDhqEfdOOk++ACz8MsuegdB04t89/1O/w1cDnyilFU=') 
+from linebot.http import AsyncHttpClient
+
+async_http_client = AsyncHttpClient()
+line_bot_api = AsyncLineBotApi('Xe4goaDprmptFyFWzYrTxX5TwO6bzAnvYrIGUGDxpE29pTzXeBmDmgsmLOlWSgmdAT8Kwh3ujnKC3InLDoStESGARbqQ3qTkNPlxNnqXIgrsIGSmEe7pKH4RmDzELH4mUoDhqEfdOOk++ACz8MsuegdB04t89/1O/w1cDnyilFU=', async_http_client=async_http_client)
 handler = WebhookHandler('8763f65621c328f70d1334b4d4758e46')
-GROUP_ID = 'C1e11e203e527b7f8e9bcb2d4437925b8'  
+GROUP_ID = 'C1e11e203e527b7f8e9bcb2d4437925b8'
 
 pending_texts = {}
 
