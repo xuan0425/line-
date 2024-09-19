@@ -6,15 +6,13 @@ from linebot.models import (
     PostbackAction, ImageMessage, ImageSendMessage
 )
 from linebot.exceptions import InvalidSignatureError
+import httpx
 import os
-import aiohttp
 
 app = Quart(__name__)
 
 # 初始化 AsyncLineBotApi
-from linebot.http import AsyncHttpClient
-
-async_http_client = AsyncHttpClient()
+async_http_client = httpx.AsyncClient()
 line_bot_api = AsyncLineBotApi('Xe4goaDprmptFyFWzYrTxX5TwO6bzAnvYrIGUGDxpE29pTzXeBmDmgsmLOlWSgmdAT8Kwh3ujnKC3InLDoStESGARbqQ3qTkNPlxNnqXIgrsIGSmEe7pKH4RmDzELH4mUoDhqEfdOOk++ACz8MsuegdB04t89/1O/w1cDnyilFU=', async_http_client=async_http_client)
 handler = WebhookHandler('8763f65621c328f70d1334b4d4758e46')
 GROUP_ID = 'C1e11e203e527b7f8e9bcb2d4437925b8'
@@ -187,17 +185,13 @@ async def upload_image_to_imgur(image_path):
     headers = {'Authorization': f'Client-ID {client_id}'}
 
     try:
-        async with aiohttp.ClientSession() as session:
+        async with httpx.AsyncClient() as client:
             with open(image_path, 'rb') as image_file:
                 data = {'image': image_file}
-                async with session.post('https://api.imgur.com/3/upload', headers=headers, data=data) as response:
-                    if response.status == 200:
-                        response_json = await response.json()
-                        imgur_url = response_json['data']['link']
-                        return imgur_url
-                    else:
-                        print(f'Error uploading image to Imgur: {response.status}')
-                        return None
+                response = await client.post('https://api.imgur.com/3/upload', headers=headers, files=data)
+                response_json = response.json()
+                imgur_url = response_json['data']['link']
+                return imgur_url
     except Exception as e:
         print(f'Exception uploading image to Imgur: {e}')
         return None
