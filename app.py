@@ -10,11 +10,9 @@ import os
 
 app = Quart(__name__)
 
-line_bot_api = LineBotApi('Xe4goaDprmptFyFWzYrTxX5TwO6bzAnvYrIGUGDxpE29pTzXeBmDmgsmLOlWSgmdAT8Kwh3ujnKC3InLDoStESGARbqQ3qTkNPlxNnqXIgrsIGSmEe7pKH4RmDzELH4mUoDhqEfdOOk++ACz8MsuegdB04t89/1O/w1cDnyilFU=')
+line_bot_api = LineBotApi('Xe4goaDprmptFyFWzYrTxX5TwO6bzAnvYrIGUGDxpE29pTzXeBmDmgsmLOlWSgmdAT8Kwh3ujnKC3InLDoStESGARbqQ3qTkNPlxNnqXIgrsIGSmEe7pKH4RmDzELH4mUoDhqEfdOOk++ACz8MsuegdB04t89/1O/w1cDnyilFU=') 
 handler = WebhookHandler('8763f65621c328f70d1334b4d4758e46')
-GROUP_ID = 'C1e11e203e527b7f8e9bcb2d4437925b8'  # 初始群組ID
-
-pending_texts = {}
+GROUP_ID = 'C1e11e203e527b7f8e9bcb2d4437925b8'    # 初始群組ID
 
 @app.route("/callback", methods=["POST"])
 async def callback():
@@ -32,10 +30,7 @@ async def callback():
     return 'OK'
 
 async def handle_event(body, signature):
-    if handler.handle:
-        await handler.handle(body, signature)
-    else:
-        print("handler.handle is not a coroutine or is not available")
+    await handler.handle(body, signature)
 
 @app.route('/<filename>')
 async def serve_static(filename):
@@ -48,7 +43,6 @@ async def index():
 @handler.add(MessageEvent, message=TextMessage)
 async def handle_text_message(event):
     user_message = event.message.text
-    user_id = event.source.user_id
 
     print(f"Received message: {user_message}")
 
@@ -66,7 +60,8 @@ async def handle_text_message(event):
                 event.reply_token,
                 TextSendMessage(text="此指令只能在群組中使用。")
             )
-    elif user_id in pending_texts:
+    elif event.source.user_id in pending_texts:
+        user_id = event.source.user_id
         if user_message.lower() == '取消':
             del pending_texts[user_id]
             await line_bot_api.reply_message(
@@ -79,11 +74,9 @@ async def handle_text_message(event):
             
             imgur_url = await upload_image_to_imgur(image_path)
             if imgur_url:
-                await send_image_to_group(imgur_url, text_message)
-            os.remove(image_path)
-            del pending_texts[user_id]
+                await send_image_to_group(imgur_url, user_id, text_message)
 
-async def send_image_to_group(imgur_url, text_message=None):
+async def send_image_to_group(imgur_url, user_id, text_message=None):
     if imgur_url:
         try:
             messages = [ImageSendMessage(
@@ -101,17 +94,20 @@ async def send_image_to_group(imgur_url, text_message=None):
             print('Image and text successfully sent to group.')
 
             if text_message:
-                await line_bot_api.reply_message(
-                    event.reply_token,
+                await line_bot_api.push_message(
+                    user_id,
                     TextSendMessage(text='圖片和文字已成功發送到群組。')
                 )
             else:
-                await line_bot_api.reply_message(
-                    event.reply_token,
+                await line_bot_api.push_message(
+                    user_id,
                     TextSendMessage(text='圖片已成功發送到群組。')
                 )
         except Exception as e:
             print(f'Error sending image and text to group: {e}')
+
+        os.remove(pending_texts[user_id]['image_path'])
+        del pending_texts[user_id]
 
 @handler.add(MessageEvent, message=ImageMessage)
 async def handle_image_message(event):
@@ -188,6 +184,8 @@ async def handle_postback(event):
                 event.reply_token,
                 TextSendMessage(text='請發送您想轉發的文字。')
             )
+
+pending_texts = {}
 
 async def upload_image_to_imgur(image_path):
     client_id = '6aab1dd4cdc087c'
