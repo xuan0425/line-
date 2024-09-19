@@ -1,9 +1,9 @@
 from quart import Quart, request, abort, jsonify
-from linebot import LineBotApi, WebhookHandler
+from linebot import AsyncLineBotApi, WebhookHandler
 from linebot.models import (
     MessageEvent, TextMessage, TextSendMessage, 
     TemplateSendMessage, ButtonsTemplate, 
-    MessageAction, PostbackAction, ImageMessage, ImageSendMessage
+    MessageAction, PostbackAction, ImageMessage
 )
 from linebot.models.events import PostbackEvent
 from linebot.exceptions import InvalidSignatureError
@@ -12,12 +12,10 @@ import aiohttp
 
 app = Quart(__name__)
 
-# Replace with your own LINE channel access token and secret
-line_bot_api = LineBotApi('Xe4goaDprmptFyFWzYrTxX5TwO6bzAnvYrIGUGDxpE29pTzXeBmDmgsmLOlWSgmdAT8Kwh3ujnKC3InLDoStESGARbqQ3qTkNPlxNnqXIgrsIGSmEe7pKH4RmDzELH4mUoDhqEfdOOk++ACz8MsuegdB04t89/1O/w1cDnyilFU=') 
+line_bot_api = AsyncLineBotApi('Xe4goaDprmptFyFWzYrTxX5TwO6bzAnvYrIGUGDxpE29pTzXeBmDmgsmLOlWSgmdAT8Kwh3ujnKC3InLDoStESGARbqQ3qTkNPlxNnqXIgrsIGSmEe7pKH4RmDzELH4mUoDhqEfdOOk++ACz8MsuegdB04t89/1O/w1cDnyilFU=') 
 handler = WebhookHandler('8763f65621c328f70d1334b4d4758e46')
-GROUP_ID = 'C1e11e203e527b7f8e9bcb2d4437925b8'  # 初始群組ID
+GROUP_ID = 'C1e11e203e527b7f8e9bcb2d4437925b8'  # 初
 
-# Global variable to store the group ID
 pending_texts = {}
 
 @app.route("/callback", methods=["POST"])
@@ -116,7 +114,7 @@ async def handle_image_message(event):
     image_content = await line_bot_api.get_message_content(message_id)
     image_path = f'static/{message_id}.jpg'
     with open(image_path, 'wb') as fd:
-        async for chunk in image_content.iter_content():
+        async for chunk in image_content.iter_any():
             fd.write(chunk)
 
     print(f'Image successfully downloaded to {image_path}')
