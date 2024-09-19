@@ -24,6 +24,7 @@ def callback():
         abort(400)
     except Exception as e:
         print("Error in callback:", e)
+        # Return error response to avoid further issues
         return jsonify({'error': str(e)}), 500
 
     return 'OK'
