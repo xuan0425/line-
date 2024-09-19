@@ -17,21 +17,25 @@ handler = WebhookHandler('8763f65621c328f70d1334b4d4758e46')
 GROUP_ID = 'C1e11e203e527b7f8e9bcb2d4437925b8'  # 初始群組ID
 
 @app.route('/callback', methods=['POST'])
-def callback():
-    data = request.get_json()
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
+async def callback():
+    signature = request.headers.get('X-Line-Signature')
+    body = request.get_data(as_text=True)
+    
     try:
-        loop.run_until_complete(handle_event(data))
+        await handler.handle(body, signature)
+    except InvalidSignatureError:
+        abort(400)
     except Exception as e:
         print(f"Error in callback: {e}")
         return jsonify({'error': str(e)}), 500
     return 'OK'
 
+
 async def handle_event(data):
     signature = request.headers.get('X-Line-Signature')
     body = request.get_data(as_text=True)
-    handler.handle(body, signature)
+    await handler.handle(body, signature)
+
 
 @app.route('/<filename>')
 def serve_static(filename):
@@ -43,13 +47,13 @@ def index():
 
 @handler.add(MessageEvent, message=TextMessage)
 async def handle_text_message(event):
-    global GROUP_ID
     user_message = event.message.text
 
     print(f"Received message: {user_message}")
 
     if user_message.startswith('/設定群組'):
         if event.source.type == 'group':
+            global GROUP_ID
             GROUP_ID = event.source.group_id
             await line_bot_api.reply_message(
                 event.reply_token,
@@ -61,6 +65,7 @@ async def handle_text_message(event):
                 event.reply_token,
                 TextSendMessage(text="此指令只能在群組中使用。")
             )
+    # 處理其他訊息邏輯...
     elif event.source.user_id in pending_texts:
         user_id = event.source.user_id
         if user_message.lower() == '取消':
