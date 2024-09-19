@@ -9,14 +9,13 @@ from linebot.models import (
 from linebot.exceptions import InvalidSignatureError
 import httpx
 import concurrent.futures
-import traceback
 
 app = Flask(__name__)
 socketio = SocketIO(app, async_mode=None)  # 使用同步模式
 
 line_bot_api = LineBotApi('Xe4goaDprmptFyFWzYrTxX5TwO6bzAnvYrIGUGDxpE29pTzXeBmDmgsmLOlWSgmdAT8Kwh3ujnKC3InLDoStESGARbqQ3qTkNPlxNnqXIgrsIGSmEe7pKH4RmDzELH4mUoDhqEfdOOk++ACz8MsuegdB04t89/1O/w1cDnyilFU=') 
 handler = WebhookHandler('8763f65621c328f70d1334b4d4758e46')
-GROUP_ID = 'C1e11e203e527b7f8e9bcb2d4437925b8'   
+GROUP_ID = 'C1e11e203e527b7f8e9bcb2d4437925b8'  
 
 pending_texts = {}
 
@@ -46,7 +45,6 @@ def handle_text_message(event):
     user_message = event.message.text
     user_id = event.source.user_id
 
-    # 檢查是否為設置群組指令
     if user_message.startswith('/設定群組'):
         if event.source.type == 'group':
             global GROUP_ID
@@ -71,36 +69,7 @@ def handle_text_message(event):
         else:
             image_path = pending_texts[user_id]['image_path']
             text_message = user_message
-            # 使用 executor.submit 而不是 asyncio.run
             executor.submit(upload_and_send_image, image_path, user_id, text_message)
-
-def send_image_to_group(imgur_url, user_id, text_message=None):
-    if imgur_url:
-        try:
-            print(f'Sending image with URL: {imgur_url}')  # Debugging line
-
-            messages = [ImageSendMessage(
-                original_content_url=imgur_url,
-                preview_image_url=imgur_url
-            )]
-
-            if text_message:
-                messages.append(TextSendMessage(text=text_message))
-
-            response = line_bot_api.push_message(
-                GROUP_ID,
-                messages
-            )
-            print(f'Successfully sent to group. Response: {response}')  # Debugging line
-
-            line_bot_api.push_message(
-                user_id,
-                TextSendMessage(text='圖片和文字已成功發送到群組。' if text_message else '圖片已成功發送到群組。')
-            )
-        except Exception as e:
-            print(f'Error sending image and text to group: {e}')
-    else:
-        print('No image URL provided.')
 
 @handler.add(MessageEvent, message=ImageMessage)
 def handle_image_message(event):
@@ -183,6 +152,34 @@ def upload_and_send_image(image_path, user_id, text_message=None):
     print(f'Image uploaded to: {imgur_url}')  # Debugging line
     if imgur_url:
         send_image_to_group(imgur_url, user_id, text_message)
+
+def send_image_to_group(imgur_url, user_id, text_message=None):
+    if imgur_url:
+        try:
+            print(f'Sending image with URL: {imgur_url}')  # Debugging line
+
+            messages = [ImageSendMessage(
+                original_content_url=imgur_url,
+                preview_image_url=imgur_url
+            )]
+
+            if text_message:
+                messages.append(TextSendMessage(text=text_message))
+
+            response = line_bot_api.push_message(
+                GROUP_ID,
+                messages
+            )
+            print(f'Successfully sent to group. Response: {response}')  # Debugging line
+
+            line_bot_api.push_message(
+                user_id,
+                TextSendMessage(text='圖片和文字已成功發送到群組。' if text_message else '圖片已成功發送到群組。')
+            )
+        except Exception as e:
+            print(f'Error sending image and text to group: {e}')
+    else:
+        print('No image URL provided.')
 
 if __name__ == "__main__":
     app.run(port=10000)
