@@ -31,7 +31,10 @@ async def callback():
     return 'OK'
 
 async def handle_event(body, signature):
-    await handler.handle(body, signature)
+    if handler is not None:
+        await handler.handle(body, signature)
+    else:
+        logging.error("WebhookHandler instance is None")
 
 @handler.add(MessageEvent, message=TextMessage)
 async def handle_text_message(event):
