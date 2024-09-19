@@ -174,6 +174,7 @@ def upload_image_to_imgur(image_path):
             data = {'image': image_file}
             response = httpx.post('https://api.imgur.com/3/upload', headers=headers, files=data)
             response_json = response.json()
+            print(f'Imgur response: {response_json}')  # 打印完整的响应内容
             imgur_url = response_json['data']['link']
             return imgur_url
     except Exception as e:
