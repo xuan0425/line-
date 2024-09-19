@@ -28,6 +28,9 @@ pending_texts = {}
 def callback():
     signature = request.headers.get('X-Line-Signature')
     body = request.get_data(as_text=True)
+    
+    print(f"Received body: {body}")  # Debugging line
+    print(f"Received signature: {signature}")  # Debugging line
 
     try:
         handler.handle(body, signature)
@@ -38,6 +41,7 @@ def callback():
         return jsonify({'error': str(e)}), 500
 
     return 'OK'
+
 
 @handler.add(MessageEvent, message=TextMessage)
 def handle_text_message(event):
