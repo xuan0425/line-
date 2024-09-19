@@ -4,3 +4,4 @@ imgurpython
 gunicorn
 PyGithub
 aiohttp
+uvicorn
