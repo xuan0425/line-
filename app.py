@@ -32,7 +32,10 @@ async def callback():
     return 'OK'
 
 async def handle_event(body, signature):
-    await handler.handle(body, signature)
+    if handler.handle:
+        await handler.handle(body, signature)
+    else:
+        print("handler.handle is not a coroutine or is not available")
 
 @app.route('/<filename>')
 async def serve_static(filename):
