@@ -41,7 +41,6 @@ def callback():
 
     return 'OK'
 
-
 @handler.add(MessageEvent, message=TextMessage)
 def handle_text_message(event):
     user_message = event.message.text
@@ -74,8 +73,6 @@ def handle_text_message(event):
             text_message = user_message
             # 使用 executor.submit 而不是 asyncio.run
             executor.submit(upload_and_send_image, image_path, user_id, text_message)
-
-
 
 def send_image_to_group(imgur_url, user_id, text_message=None):
     if imgur_url:
