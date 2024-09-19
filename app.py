@@ -29,8 +29,8 @@ def callback():
     signature = request.headers.get('X-Line-Signature')
     body = request.get_data(as_text=True)
     
-    print(f"Received body: {body}")  # Debugging line
-    print(f"Received signature: {signature}")  # Debugging line
+    print(f"Received body: {body}")
+    print(f"Received signature: {signature}")
 
     try:
         handler.handle(body, signature)
@@ -41,7 +41,6 @@ def callback():
         return jsonify({'error': str(e)}), 500
 
     return 'OK'
-
 
 @handler.add(MessageEvent, message=TextMessage)
 def handle_text_message(event):
@@ -73,8 +72,9 @@ def handle_text_message(event):
             image_path = pending_texts[user_id]['image_path']
             text_message = user_message
 
-            # 使用 gevent 調用異步函數
-            gevent.spawn(upload_and_send_image, image_path, user_id, text_message)
+            # 使用 asyncio.run 來運行異步函數
+            asyncio.run(upload_and_send_image(image_path, user_id, text_message))
+
 
 def send_image_to_group(imgur_url, user_id, text_message=None):
     if imgur_url:
