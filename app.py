@@ -1,18 +1,19 @@
-from quart import Quart, request, abort, send_from_directory, jsonify
+from flask import Flask, request, abort, jsonify
 from linebot import LineBotApi, WebhookHandler
-from linebot.models import (
-    MessageEvent, TextMessage, ImageMessage, ImageSendMessage, TextSendMessage, TemplateSendMessage, ButtonsTemplate, PostbackAction
-)
-from linebot.models.events import PostbackEvent
+from linebot.models import MessageEvent, TextMessage, ImageMessage, TemplateSendMessage, ButtonsTemplate, PostbackAction, TextSendMessage, ImageSendMessage
 from linebot.exceptions import InvalidSignatureError
 import aiohttp
 import os
 
-app = Quart(__name__)
+app = Flask(__name__)
 
+# Replace with your own LINE channel access token and secret
 line_bot_api = LineBotApi('Xe4goaDprmptFyFWzYrTxX5TwO6bzAnvYrIGUGDxpE29pTzXeBmDmgsmLOlWSgmdAT8Kwh3ujnKC3InLDoStESGARbqQ3qTkNPlxNnqXIgrsIGSmEe7pKH4RmDzELH4mUoDhqEfdOOk++ACz8MsuegdB04t89/1O/w1cDnyilFU=') 
 handler = WebhookHandler('8763f65621c328f70d1334b4d4758e46')
-GROUP_ID = 'C1e11e203e527b7f8e9bcb2d4437925b8'    # 初始群組ID
+GROUP_ID = 'C1e11e203e527b7f8e9bcb2d4437925b8'  # 初
+
+# Global variable to store the group ID
+pending_texts = {}
 
 @app.route("/callback", methods=["POST"])
 async def callback():
@@ -30,23 +31,13 @@ async def callback():
     return 'OK'
 
 async def handle_event(body, signature):
-    # Ensure `handler.handle` is awaited properly
     await handler.handle(body, signature)
-
-@app.route('/<filename>')
-async def serve_static(filename):
-    return await send_from_directory('static', filename)
-
-@app.route('/')
-async def index():
-    return "LINE bot is running!"
 
 @handler.add(MessageEvent, message=TextMessage)
 async def handle_text_message(event):
     user_message = event.message.text
-
-    print(f"Received message: {user_message}")
-
+    user_id = event.source.user_id
+    
     if user_message.startswith('/設定群組'):
         if event.source.type == 'group':
             global GROUP_ID
@@ -61,8 +52,7 @@ async def handle_text_message(event):
                 event.reply_token,
                 TextSendMessage(text="此指令只能在群組中使用。")
             )
-    elif event.source.user_id in pending_texts:
-        user_id = event.source.user_id
+    elif user_id in pending_texts:
         if user_message.lower() == '取消':
             del pending_texts[user_id]
             await line_bot_api.reply_message(
@@ -185,8 +175,6 @@ async def handle_postback(event):
                 event.reply_token,
                 TextSendMessage(text='請發送您想轉發的文字。')
             )
-
-pending_texts = {}
 
 async def upload_image_to_imgur(image_path):
     client_id = '6aab1dd4cdc087c'
