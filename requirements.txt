@@ -1,10 +1,10 @@
-flask
+Flask==2.2.3
 quart==0.18.1
 line-bot-sdk==3.1.0
 imgurpython
 gunicorn
 PyGithub
-aiohttp
+aiohttp==3.8.4
 uvicorn
 gevent
 eventlet
