@@ -7,7 +7,6 @@ from linebot.models import (
 )
 from linebot.models.events import PostbackEvent
 from linebot.exceptions import InvalidSignatureError
-from linebot.aiohttp_http_client import AioHttpClient
 from linebot.http_client import AsyncHttpClient
 import os
 import aiohttp
