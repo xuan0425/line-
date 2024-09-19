@@ -1,8 +1,7 @@
-flask[async]
-quart==0.18.1  
+quart==0.18.1
 line-bot-sdk==3.1.0
 imgurpython
 PyGithub
 aiohttp==3.8.4
-hypercorn  
-werkzeug==2.3.0  
+hypercorn
+werkzeug==2.3.0

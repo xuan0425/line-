@@ -1,19 +1,21 @@
-from flask import Flask, request, abort, jsonify
+from quart import Quart, request, abort, jsonify
 from linebot import LineBotApi, WebhookHandler
 from linebot.models import (
     MessageEvent, TextMessage, TextSendMessage, 
     TemplateSendMessage, ButtonsTemplate, 
-    MessageAction, PostbackAction, ImageMessage
+    MessageAction, PostbackAction, ImageMessage, ImageSendMessage
 )
 from linebot.models.events import PostbackEvent
 from linebot.exceptions import InvalidSignatureError
+import os
+import aiohttp
 
-app = Flask(__name__)
+app = Quart(__name__)
 
 # Replace with your own LINE channel access token and secret
 line_bot_api = LineBotApi('Xe4goaDprmptFyFWzYrTxX5TwO6bzAnvYrIGUGDxpE29pTzXeBmDmgsmLOlWSgmdAT8Kwh3ujnKC3InLDoStESGARbqQ3qTkNPlxNnqXIgrsIGSmEe7pKH4RmDzELH4mUoDhqEfdOOk++ACz8MsuegdB04t89/1O/w1cDnyilFU=') 
 handler = WebhookHandler('8763f65621c328f70d1334b4d4758e46')
-GROUP_ID = 'C1e11e203e527b7f8e9bcb2d4437925b8'  # 初
+GROUP_ID = 'C1e11e203e527b7f8e9bcb2d4437925b8'  # 初始群組ID
 
 # Global variable to store the group ID
 pending_texts = {}
@@ -114,7 +116,7 @@ async def handle_image_message(event):
     image_content = await line_bot_api.get_message_content(message_id)
     image_path = f'static/{message_id}.jpg'
     with open(image_path, 'wb') as fd:
-        async for chunk in image_content.iter_any():
+        async for chunk in image_content.iter_content():
             fd.write(chunk)
 
     print(f'Image successfully downloaded to {image_path}')
