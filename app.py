@@ -1,7 +1,7 @@
 import os
 import aiohttp
 import asyncio
-from flask import Flask, request, abort, send_from_directory, jsonify
+from quart import Quart, request, abort, send_from_directory, jsonify
 from linebot import LineBotApi, WebhookHandler
 from linebot.models import (
     MessageEvent, TextMessage, ImageMessage, ImageSendMessage, TextSendMessage, TemplateSendMessage, ButtonsTemplate, PostbackAction
@@ -9,7 +9,7 @@ from linebot.models import (
 from linebot.models.events import PostbackEvent
 from linebot.exceptions import InvalidSignatureError
 
-app = Flask(__name__)
+app = Quart(__name__)
 
 # LINE Bot API credentials
 line_bot_api = LineBotApi('Xe4goaDprmptFyFWzYrTxX5TwO6bzAnvYrIGUGDxpE29pTzXeBmDmgsmLOlWSgmdAT8Kwh3ujnKC3InLDoStESGARbqQ3qTkNPlxNnqXIgrsIGSmEe7pKH4RmDzELH4mUoDhqEfdOOk++ACz8MsuegdB04t89/1O/w1cDnyilFU=') 
@@ -17,23 +17,18 @@ handler = WebhookHandler('8763f65621c328f70d1334b4d4758e46')
 GROUP_ID = 'C1e11e203e527b7f8e9bcb2d4437925b8'  # 初始群組ID
 
 @app.route("/callback", methods=["POST"])
-def callback():
+async def callback():
     # 處理 LINE webhook 事件
     signature = request.headers.get('X-Line-Signature')
-    body = request.get_data(as_text=True)
+    body = await request.get_data(as_text=True)
     
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-
     try:
-        loop.run_until_complete(handle_event(body, signature))
+        await handle_event(body, signature)
     except InvalidSignatureError:
         abort(400)
     except Exception as e:
         print(f"Error in callback: {e}")
         return jsonify({'error': str(e)}), 500
-    finally:
-        loop.close()
     
     return 'OK'
 
@@ -43,11 +38,11 @@ async def handle_event(body, signature):
 
 
 @app.route('/<filename>')
-def serve_static(filename):
-    return send_from_directory('static', filename)
+async def serve_static(filename):
+    return await send_from_directory('static', filename)
 
 @app.route('/')
-def index():
+async def index():
     return "LINE bot is running!"
 
 @handler.add(MessageEvent, message=TextMessage)
@@ -70,7 +65,6 @@ async def handle_text_message(event):
                 event.reply_token,
                 TextSendMessage(text="此指令只能在群組中使用。")
             )
-    # 處理其他訊息邏輯...
     elif event.source.user_id in pending_texts:
         user_id = event.source.user_id
         if user_message.lower() == '取消':
@@ -128,10 +122,10 @@ async def handle_image_message(event):
     if event.source.type == 'group':
         return
 
-    image_content = line_bot_api.get_message_content(message_id)
+    image_content = await line_bot_api.get_message_content(message_id)
     image_path = f'static/{message_id}.jpg'
     with open(image_path, 'wb') as fd:
-        for chunk in image_content.iter_content():
+        async for chunk in image_content.iter_any():
             fd.write(chunk)
 
     print(f'Image successfully downloaded to {image_path}')
@@ -219,4 +213,4 @@ async def upload_image_to_imgur(image_path):
         return None
 
 if __name__ == "__main__":
-    app.run()
+    app.run(port=10000)
