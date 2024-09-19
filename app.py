@@ -40,10 +40,10 @@ def callback():
         abort(400)
     except Exception as e:
         print("Error in callback:", e)
-        print(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
 
     return 'OK'
+
 
 @handler.add(MessageEvent, message=TextMessage)
 def handle_text_message(event):
