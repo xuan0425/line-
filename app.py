@@ -10,10 +10,9 @@ import os
 
 app = Quart(__name__)
 
-# LINE Bot API credentials
 line_bot_api = LineBotApi('Xe4goaDprmptFyFWzYrTxX5TwO6bzAnvYrIGUGDxpE29pTzXeBmDmgsmLOlWSgmdAT8Kwh3ujnKC3InLDoStESGARbqQ3qTkNPlxNnqXIgrsIGSmEe7pKH4RmDzELH4mUoDhqEfdOOk++ACz8MsuegdB04t89/1O/w1cDnyilFU=') 
 handler = WebhookHandler('8763f65621c328f70d1334b4d4758e46')
-GROUP_ID = 'C1e11e203e527b7f8e9bcb2d4437925b8'  # 初始群組ID
+GROUP_ID = 'C1e11e203e527b7f8e9bcb2d4437925b8'    # 初始群組ID
 
 @app.route("/callback", methods=["POST"])
 async def callback():
@@ -31,7 +30,6 @@ async def callback():
     return 'OK'
 
 async def handle_event(body, signature):
-    # 這裡應該用 await 呼叫 handle 方法
     await handler.handle(body, signature)
 
 @app.route('/<filename>')
