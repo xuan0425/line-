@@ -9,21 +9,19 @@ from linebot.models import (
 from linebot.exceptions import InvalidSignatureError
 import httpx
 import concurrent.futures
-import gevent
 import traceback
-from gevent import monkey
-
-# 打補丁，讓標準庫函數在協程中運行
-monkey.patch_all()
+import os
 
 app = Flask(__name__)
-socketio = SocketIO(app, async_mode='gevent')
+socketio = SocketIO(app, async_mode=None)  # 使用同步模式
 
 line_bot_api = LineBotApi('Xe4goaDprmptFyFWzYrTxX5TwO6bzAnvYrIGUGDxpE29pTzXeBmDmgsmLOlWSgmdAT8Kwh3ujnKC3InLDoStESGARbqQ3qTkNPlxNnqXIgrsIGSmEe7pKH4RmDzELH4mUoDhqEfdOOk++ACz8MsuegdB04t89/1O/w1cDnyilFU=') 
 handler = WebhookHandler('8763f65621c328f70d1334b4d4758e46')
 GROUP_ID = 'C1e11e203e527b7f8e9bcb2d4437925b8'  
 
 pending_texts = {}
+
+executor = concurrent.futures.ThreadPoolExecutor(max_workers=4)
 
 @app.route("/callback", methods=["POST"])
 def callback():
@@ -74,8 +72,7 @@ def handle_text_message(event):
         else:
             image_path = pending_texts[user_id]['image_path']
             text_message = user_message
-            asyncio.run(upload_and_send_image(image_path, user_id, text_message))
-
+            executor.submit(upload_and_send_image, image_path, user_id, text_message)
 
 
 def send_image_to_group(imgur_url, user_id, text_message=None):
@@ -153,8 +150,7 @@ def handle_postback(event):
 
         if data == 'send_image':
             print('Handling send_image postback')  # Debugging line
-            # 使用 gevent 調用異步函數
-            gevent.spawn(upload_and_send_image, image_path, user_id)
+            executor.submit(upload_and_send_image, image_path, user_id)
 
         elif data == 'add_text':
             print('Handling add_text postback')  # Debugging line
@@ -163,29 +159,28 @@ def handle_postback(event):
                 TextSendMessage(text='請發送您想轉發的文字。')
             )
 
-async def upload_image_to_postimage(image_path):
+def upload_image_to_postimage(image_path):
     url = 'https://postimages.org/json/upload'
     try:
-        async with httpx.AsyncClient() as client:
-            with open(image_path, 'rb') as image_file:
-                files = {'file': image_file}
-                response = await client.post(url, files=files)
-                print(f'PostImage response: {response.text}')  # Debugging line
-                response_json = response.json()
+        with open(image_path, 'rb') as image_file:
+            files = {'file': image_file}
+            response = httpx.post(url, files=files)
+            print(f'PostImage response: {response.text}')  # Debugging line
+            response_json = response.json()
 
-                if response_json.get('status') == 'success':
-                    print(f'Image URL: {response_json["data"]["url"]}')  # Debugging line
-                    return response_json['data']['url']
-                else:
-                    print('Error uploading image to PostImage:', response_json)
-                    return None
+            if response_json.get('status') == 'success':
+                print(f'Image URL: {response_json["data"]["url"]}')  # Debugging line
+                return response_json['data']['url']
+            else:
+                print('Error uploading image to PostImage:', response_json)
+                return None
     except Exception as e:
         print(f'Exception uploading image to PostImage: {e}')
         return None
 
-async def upload_and_send_image(image_path, user_id, text_message=None):
+def upload_and_send_image(image_path, user_id, text_message=None):
     print(f'Starting upload_and_send_image with {image_path}')  # Debugging line
-    imgur_url = await upload_image_to_postimage(image_path)
+    imgur_url = upload_image_to_postimage(image_path)
     print(f'Image uploaded to: {imgur_url}')  # Debugging line
     if imgur_url:
         send_image_to_group(imgur_url, user_id, text_message)
