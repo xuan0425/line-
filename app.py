@@ -21,14 +21,17 @@ def callback():
     signature = request.headers['X-Line-Signature']
     body = request.get_data(as_text=True)
 
-    print(f"Received request body: {body}")
+    print(f"Received request body: {body}")  # 添加這行來記錄收到的請求
+    print(f"Received signature: {signature}")
 
     try:
         handler.handle(body, signature)
     except InvalidSignatureError:
+        print("Invalid signature. Check your channel secret and the signature in the request header.")
         abort(400)
 
     return 'OK'
+
 
 @app.route('/<filename>')
 def serve_static(filename):
