@@ -16,8 +16,9 @@ line_bot_api = LineBotApi('Xe4goaDprmptFyFWzYrTxX5TwO6bzAnvYrIGUGDxpE29pTzXeBmDm
 handler = WebhookHandler('8763f65621c328f70d1334b4d4758e46')
 GROUP_ID = 'C1e11e203e527b7f8e9bcb2d4437925b8'  # 初始群組ID
 
-@app.route('/callback', methods=['POST'])
-async def callback():
+@app.route("/callback", methods=["POST"])
+def callback():
+    # 處理 LINE webhook 事件
     signature = request.headers.get('X-Line-Signature')
     body = request.get_data(as_text=True)
     
@@ -46,7 +47,7 @@ def index():
     return "LINE bot is running!"
 
 @handler.add(MessageEvent, message=TextMessage)
-async def handle_text_message(event):
+await handle_text_message(event):
     user_message = event.message.text
 
     print(f"Received message: {user_message}")

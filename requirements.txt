@@ -8,3 +8,4 @@ uvicorn
 gevent
 eventlet
 flask[async]
+line-bot-sdk
