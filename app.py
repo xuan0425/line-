@@ -64,7 +64,7 @@ def handle_text_message(event):
             image_path = pending_texts[user_id]['image_path']
             text_message = user_message
 
-            imgur_url = upload_image_to_imgur(image_path)
+            imgur_url = await upload_image_to_postimage(image_path)
             if imgur_url:
                 send_image_to_group(imgur_url, user_id, text_message)
 
@@ -131,7 +131,7 @@ def handle_image_message(event):
     )
 
 @handler.add(PostbackEvent)
-def handle_postback(event):
+async def handle_postback(event):
     user_id = event.source.user_id
     data = event.postback.data
 
@@ -139,7 +139,7 @@ def handle_postback(event):
         image_path = pending_texts[user_id]['image_path']
 
         if data == 'send_image':
-            imgur_url = upload_image_to_imgur(image_path)
+            imgur_url = await upload_image_to_postimage(image_path)
 
             if imgur_url:
                 line_bot_api.push_message(
@@ -165,23 +165,24 @@ def handle_postback(event):
                 TextSendMessage(text='請發送您想轉發的文字。')
             )
 
-def upload_image_to_imgur(image_path):
-    client_id = '6aab1dd4cdc087c'
-    headers = {'Authorization': f'Client-ID {client_id}'}
-
+async def upload_image_to_postimage(image_path):
+    url = 'https://postimages.org/json/upload'
     try:
-        with open(image_path, 'rb') as image_file:
-            data = {'image': image_file}
-            response = httpx.post('https://api.imgur.com/3/upload', headers=headers, files=data)
-            print(f'Response status: {response.status_code}')
-            print(f'Response text: {response.text}')  # 打印响应文本
-            response_json = response.json()
-            imgur_url = response_json['data']['link']
-            return imgur_url
+        async with httpx.AsyncClient() as client:
+            with open(image_path, 'rb') as image_file:
+                files = {'file': image_file}
+                response = await client.post(url, files=files)
+                print(f'PostImage response: {response.text}')  # 打印完整的响应内容
+                response_json = response.json()
+                
+                if response_json.get('status') == 'success':
+                    return response_json['data']['url']
+                else:
+                    print('Error uploading image to PostImage:', response_json)
+                    return None
     except Exception as e:
-        print(f'Exception uploading image to Imgur: {e}')
+        print(f'Exception uploading image to PostImage: {e}')
         return None
-
 
 if __name__ == "__main__":
     app.run(port=10000)
