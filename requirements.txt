@@ -5,3 +5,5 @@ gunicorn
 PyGithub
 aiohttp
 uvicorn
+gevent
+eventlet
