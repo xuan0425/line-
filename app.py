@@ -10,6 +10,7 @@ from linebot.exceptions import InvalidSignatureError
 import httpx
 import concurrent.futures
 import gevent
+import traceback
 from gevent import monkey
 
 # 打補丁，讓標準庫函數在協程中運行
@@ -35,9 +36,11 @@ def callback():
     try:
         handler.handle(body, signature)
     except InvalidSignatureError:
+        print("Invalid signature")
         abort(400)
     except Exception as e:
-        print(f"Error in callback: {e}")
+        print("Error in callback:", e)
+        print(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
 
     return 'OK'
@@ -71,9 +74,8 @@ def handle_text_message(event):
         else:
             image_path = pending_texts[user_id]['image_path']
             text_message = user_message
-
-            # 使用 asyncio.run 來運行異步函數
             asyncio.run(upload_and_send_image(image_path, user_id, text_message))
+
 
 
 def send_image_to_group(imgur_url, user_id, text_message=None):
