@@ -3,4 +3,5 @@ Flask-SocketIO
 line-bot-sdk==3.1.0
 httpx
 gunicorn
+gevent
 
