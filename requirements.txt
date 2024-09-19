@@ -7,3 +7,4 @@ aiohttp
 uvicorn
 gevent
 eventlet
+flask[async]
