@@ -73,6 +73,8 @@ def handle_text_message(event):
 def send_image_to_group(imgur_url, user_id, text_message=None):
     if imgur_url:
         try:
+            print(f'Sending image with URL: {imgur_url}')  # Debugging line
+
             messages = [ImageSendMessage(
                 original_content_url=imgur_url,
                 preview_image_url=imgur_url
@@ -81,11 +83,11 @@ def send_image_to_group(imgur_url, user_id, text_message=None):
             if text_message:
                 messages.append(TextSendMessage(text=text_message))
 
-            line_bot_api.push_message(
+            response = line_bot_api.push_message(
                 GROUP_ID,
                 messages
             )
-            print('Image and text successfully sent to group.')
+            print(f'Successfully sent to group. Response: {response}')  # Debugging line
 
             line_bot_api.push_message(
                 user_id,
@@ -93,9 +95,9 @@ def send_image_to_group(imgur_url, user_id, text_message=None):
             )
         except Exception as e:
             print(f'Error sending image and text to group: {e}')
+    else:
+        print('No image URL provided.')
 
-        os.remove(pending_texts[user_id]['image_path'])
-        del pending_texts[user_id]
 
 @handler.add(MessageEvent, message=ImageMessage)
 def handle_image_message(event):
@@ -164,8 +166,9 @@ def upload_image_to_postimage(image_path):
                 response = client.post(url, files=files)
                 print(f'PostImage response: {response.text}')  # Debugging line
                 response_json = response.json()
-                
+
                 if response_json.get('status') == 'success':
+                    print(f'Image URL: {response_json["data"]["url"]}')  # Debugging line
                     return response_json['data']['url']
                 else:
                     print('Error uploading image to PostImage:', response_json)
@@ -173,6 +176,7 @@ def upload_image_to_postimage(image_path):
     except Exception as e:
         print(f'Exception uploading image to PostImage: {e}')
         return None
+
 
 def upload_and_send_image(image_path, user_id, text_message=None):
     print(f'Starting upload_and_send_image with {image_path}')  # Debugging line
