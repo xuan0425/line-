@@ -30,6 +30,7 @@ async def callback():
     return 'OK'
 
 async def handle_event(body, signature):
+    # Ensure `handler.handle` is awaited properly
     await handler.handle(body, signature)
 
 @app.route('/<filename>')
