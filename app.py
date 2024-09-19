@@ -171,7 +171,9 @@ async def upload_image_to_postimage(image_path):
         return None
 
 async def upload_and_send_image(image_path, user_id, text_message=None):
+    print(f'Starting upload_and_send_image with {image_path}')  # Debugging line
     imgur_url = await upload_image_to_postimage(image_path)
+    print(f'Image uploaded to: {imgur_url}')  # Debugging line
     if imgur_url:
         send_image_to_group(imgur_url, user_id, text_message)
 
