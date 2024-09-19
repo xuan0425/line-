@@ -12,26 +12,26 @@ from linebot.exceptions import InvalidSignatureError
 app = Flask(__name__)
 
 # LINE Bot API credentials
-line_bot_api = LineBotApi('Xe4goaDprmptFyFWzYrTxX5TwO6bzAnvYrIGUGDxpE29pTzXeBmDmgsmLOlWSgmdAT8Kwh3ujnKC3InLDoStESGARbqQ3qTkNPlxNnqXIgrsIGSmEe7pKH4RmDzELH4mUoDhqEfdOOk++ACz8MsuegdB04t89/1O/w1cDnyilFU=')
+line_bot_api = LineBotApi('Xe4goaDprmptFyFWzYrTxX5TwO6bzAnvYrIGUGDxpE29pTzXeBmDmgsmLOlWSgmdAT8Kwh3ujnKC3InLDoStESGARbqQ3qTkNPlxNnqXIgrsIGSmEe7pKH4RmDzELH4mUoDhqEfdOOk++ACz8MsuegdB04t89/1O/w1cDnyilFU=') 
 handler = WebhookHandler('8763f65621c328f70d1334b4d4758e46')
 GROUP_ID = 'C1e11e203e527b7f8e9bcb2d4437925b8'  # 初始群組ID
 
 @app.route('/callback', methods=['POST'])
 def callback():
+    data = request.get_json()
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.run_until_complete(handle_event(data))
+    return 'OK'
+
+async def handle_event(data):
+    # 假設 handle_text_message 和 handle_image_message 是異步函數
     signature = request.headers['X-Line-Signature']
     body = request.get_data(as_text=True)
-
-    print(f"Received request body: {body}")  # 添加這行來記錄收到的請求
-    print(f"Received signature: {signature}")
-
     try:
         handler.handle(body, signature)
     except InvalidSignatureError:
-        print("Invalid signature. Check your channel secret and the signature in the request header.")
         abort(400)
-
-    return 'OK'
-
 
 @app.route('/<filename>')
 def serve_static(filename):
@@ -107,7 +107,7 @@ async def send_image_to_group(imgur_url, user_id, text_message=None):
             print(f'Error sending image and text to group: {e}')
 
         # 刪除本地圖片
-        os.remove(image_path)
+        os.remove(pending_texts[user_id]['image_path'])
         del pending_texts[user_id]
 
 @handler.add(MessageEvent, message=ImageMessage)
