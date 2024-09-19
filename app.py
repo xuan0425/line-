@@ -3,7 +3,7 @@ from linebot import LineBotApi, WebhookHandler
 from linebot.models import (
     MessageEvent, TextMessage, TextSendMessage, 
     TemplateSendMessage, ButtonsTemplate, 
-    MessageAction, PostbackAction
+    MessageAction, PostbackAction, ImageMessage
 )
 from linebot.models.events import PostbackEvent
 from linebot.exceptions import InvalidSignatureError
