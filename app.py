@@ -1,9 +1,12 @@
 from flask import Flask, request, abort, jsonify
 from linebot import LineBotApi, WebhookHandler
-from linebot.models import MessageEvent, TextMessage, ImageMessage, TemplateSendMessage, ButtonsTemplate, PostbackAction, TextSendMessage, ImageSendMessage
+from linebot.models import (
+    MessageEvent, TextMessage, TextSendMessage, 
+    TemplateSendMessage, ButtonsTemplate, 
+    MessageAction, PostbackAction
+)
+from linebot.models.events import PostbackEvent
 from linebot.exceptions import InvalidSignatureError
-import aiohttp
-import os
 
 app = Flask(__name__)
 
