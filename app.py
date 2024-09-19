@@ -134,14 +134,18 @@ def handle_postback(event):
     user_id = event.source.user_id
     data = event.postback.data
 
+    print(f'Postback event data: {data}')  # Debugging line
+
     if user_id in pending_texts:
         image_path = pending_texts[user_id]['image_path']
 
         if data == 'send_image':
+            print('Handling send_image postback')  # Debugging line
             # 使用異步方式調用上傳函數
             socketio.start_background_task(upload_and_send_image, image_path, user_id)
 
         elif data == 'add_text':
+            print('Handling add_text postback')  # Debugging line
             line_bot_api.reply_message(
                 event.reply_token,
                 TextSendMessage(text='請發送您想轉發的文字。')
@@ -154,7 +158,7 @@ async def upload_image_to_postimage(image_path):
             with open(image_path, 'rb') as image_file:
                 files = {'file': image_file}
                 response = await client.post(url, files=files)
-                print(f'PostImage response: {response.text}')  # 打印完整的响应内容
+                print(f'PostImage response: {response.text}')  # Debugging line
                 response_json = response.json()
                 
                 if response_json.get('status') == 'success':
