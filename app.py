@@ -9,10 +9,14 @@ from linebot.models import (
 from linebot.exceptions import InvalidSignatureError
 import httpx
 import concurrent.futures
-import asyncio
+import gevent
+from gevent import monkey
+
+# 打補丁，讓標準庫函數在協程中運行
+monkey.patch_all()
 
 app = Flask(__name__)
-socketio = SocketIO(app)
+socketio = SocketIO(app, async_mode='gevent')
 
 line_bot_api = LineBotApi('Xe4goaDprmptFyFWzYrTxX5TwO6bzAnvYrIGUGDxpE29pTzXeBmDmgsmLOlWSgmdAT8Kwh3ujnKC3InLDoStESGARbqQ3qTkNPlxNnqXIgrsIGSmEe7pKH4RmDzELH4mUoDhqEfdOOk++ACz8MsuegdB04t89/1O/w1cDnyilFU=') 
 handler = WebhookHandler('8763f65621c328f70d1334b4d4758e46')
@@ -65,8 +69,8 @@ def handle_text_message(event):
             image_path = pending_texts[user_id]['image_path']
             text_message = user_message
 
-            # 使用 asyncio.run 來運行異步函數
-            asyncio.run(upload_and_send_image(image_path, user_id, text_message))
+            # 使用 gevent 調用異步函數
+            gevent.spawn(upload_and_send_image, image_path, user_id, text_message)
 
 def send_image_to_group(imgur_url, user_id, text_message=None):
     if imgur_url:
@@ -143,8 +147,8 @@ def handle_postback(event):
 
         if data == 'send_image':
             print('Handling send_image postback')  # Debugging line
-            # 使用 asyncio.run 來運行異步函數
-            asyncio.run(upload_and_send_image(image_path, user_id))
+            # 使用 gevent 調用異步函數
+            gevent.spawn(upload_and_send_image, image_path, user_id)
 
         elif data == 'add_text':
             print('Handling add_text postback')  # Debugging line
