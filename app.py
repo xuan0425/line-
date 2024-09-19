@@ -92,6 +92,12 @@ def upload_and_send_image(user_id, image_path, text_message):
         # 刪除本地圖片
         os.remove(image_path)
         del pending_texts[user_id]
+    else:
+        # 通知用戶上傳失敗
+        line_bot_api.push_message(
+            user_id,
+            TextSendMessage(text="圖片上傳失敗，請稍後再試。")
+        )
 
 @handler.add(MessageEvent, message=ImageMessage)
 def handle_image_message(event):
@@ -182,7 +188,9 @@ def upload_image_to_imgur(image_path):
 
     try:
         response = client.upload_from_path(image_path, anon=True)
-        return response['link']
+        imgur_url = response['link']
+        print(f"Imgur URL: {imgur_url}")  # 檢查圖片 URL 是否正確
+        return imgur_url
     except ImgurClientRateLimitError:
         print("Imgur rate limit exceeded. Waiting before retrying...")
         time.sleep(60)  # Wait 60 seconds before retrying
@@ -190,6 +198,7 @@ def upload_image_to_imgur(image_path):
     except Exception as e:
         print(f"Error uploading image: {e}")
         return None
+
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=10000)
