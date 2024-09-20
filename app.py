@@ -20,9 +20,9 @@ import time
 app = Flask(__name__)
 socketio = SocketIO(app, async_mode=None)
 
-line_bot_api = LineBotApi('YOUR_CHANNEL_ACCESS_TOKEN')
-handler = WebhookHandler('YOUR_CHANNEL_SECRET')
-GROUP_ID = 'YOUR_GROUP_ID'
+line_bot_api = LineBotApi('Xe4goaDprmptFyFWzYrTxX5TwO6bzAnvYrIGUGDxpE29pTzXeBmDmgsmLOlWSgmdAT8Kwh3ujnKC3InLDoStESGARbqQ3qTkNPlxNnqXIgrsIGSmEe7pKH4RmDzELH4mUoDhqEfdOOk++ACz8MsuegdB04t89/1O/w1cDnyilFU=') 
+handler = WebhookHandler('8763f65621c328f70d1334b4d4758e46')
+GROUP_ID = 'C3dca1e6da36d110cdfc734c47180e428'  
 
 pending_texts = {}
 executor = concurrent.futures.ThreadPoolExecutor(max_workers=4)
@@ -156,7 +156,7 @@ def upload_image_to_postimage(image_content):
     try:
         url = "https://api.imgbb.com/1/upload"
         payload = {
-            "key": "YOUR_IMGBB_API_KEY",
+            "key": "9084929272af9aef3bcbb7c7b8517f67",
         }
         files = {
             'image': image_content.content
