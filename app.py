@@ -15,7 +15,6 @@ from linebot.exceptions import InvalidSignatureError
 import httpx
 import concurrent.futures
 import os
-import stat
 
 app = Flask(__name__)
 socketio = SocketIO(app, async_mode=None)  # 使用同步模式
@@ -26,16 +25,6 @@ GROUP_ID = 'C1e11e203e527b7f8e9bcb2d4437925b8'
 
 pending_texts = {}
 executor = concurrent.futures.ThreadPoolExecutor(max_workers=4)
-
-def ensure_static_folder_permissions():
-    folder = 'static'
-    if not os.path.exists(folder):
-        os.makedirs(folder)
-
-    # 檢查資料夾權限
-    current_permissions = stat.S_IMODE(os.stat(folder).st_mode)
-    if not (current_permissions & stat.S_IWUSR):  # 檢查是否可寫
-        os.chmod(folder, 0o755)  # 設定可寫權限
 
 @app.route('/callback', methods=['POST'])
 def callback():
@@ -103,8 +92,9 @@ def handle_image_message(event):
     image_content = line_bot_api.get_message_content(message_id)
     image_path = f'static/{message_id}.jpg'
     
-    # 確保 static 目錄存在並檢查權限
-    ensure_static_folder_permissions()
+    # 確保 static 目錄存在
+    if not os.path.exists('static'):
+        os.makedirs('static')
 
     try:
         with open(image_path, 'wb') as fd:
@@ -112,8 +102,10 @@ def handle_image_message(event):
                 fd.write(chunk)
 
         print(f'Image successfully downloaded to {image_path}')
+        # 確保在這裡正確地更新 pending_texts
         pending_texts[user_id] = {'image_path': image_path}
-        
+        print(f"Updated pending_texts: {pending_texts}")  # 打印 pending_texts 的內容
+
     except Exception as e:
         print(f'Error saving image: {e}')
 
@@ -138,9 +130,6 @@ def handle_image_message(event):
 def handle_postback(event):
     user_id = event.source.user_id
 
-    # 打印 pending_texts 的內容
-    print(f"Current pending texts: {pending_texts}")
-
     if event.postback.data == 'send_image':
         if user_id in pending_texts:
             image_path = pending_texts[user_id]['image_path']
@@ -150,7 +139,6 @@ def handle_postback(event):
                 event.reply_token,
                 TextSendMessage(text="未找到圖片，請先發送圖片。")
             )
-
 
 def upload_and_send_image(image_path, user_id, text_message=None):
     if not image_path:
