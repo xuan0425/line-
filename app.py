@@ -79,7 +79,6 @@ def handle_text_message(event):
 
                 if image_url:  # 確保有 image_url
                     executor.submit(upload_and_send_image, image_url, user_id, text_message)
-                    del pending_texts[user_id]  # 清除狀態
                     line_bot_api.reply_message(
                         event.reply_token,
                         TextSendMessage(text='文字已成功添加。')
@@ -150,7 +149,7 @@ def handle_postback(event):
                 event.reply_token,
                 TextSendMessage(text="圖片已成功發送到群組。")
             )
-            del pending_texts[user_id]
+            del pending_texts[user_id]  # 在這裡清除狀態
         else:
             line_bot_api.reply_message(
                 event.reply_token,
