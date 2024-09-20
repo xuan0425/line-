@@ -14,6 +14,7 @@ from linebot.models import (
 from linebot.exceptions import InvalidSignatureError
 import httpx
 import concurrent.futures
+import os
 
 app = Flask(__name__)
 socketio = SocketIO(app, async_mode=None)  # 使用同步模式
@@ -27,7 +28,7 @@ executor = concurrent.futures.ThreadPoolExecutor(max_workers=4)
 
 @app.route('/callback', methods=['POST'])
 def callback():
-    signature = request.headers.get('X-Line-Signature')  # 使用 .get() 防止 header 缺失導致的 KeyError
+    signature = request.headers.get('X-Line-Signature')
     body = request.get_data(as_text=True)
 
     print(f"Received request body: {body}")
@@ -47,19 +48,17 @@ def callback():
 def index():
     return "Hello, World!"
 
-# 處理接收到的文本消息
 @handler.add(MessageEvent, message=TextMessage)
 def handle_text_message(event):
     global GROUP_ID
     user_message = event.message.text
-    user_id = event.source.user_id  # 確保 user_id 可用
+    user_id = event.source.user_id
 
     print(f"Received message: {user_message}")
 
-    # 檢查是否是/設定群組指令
     if user_message.startswith('/設定群組'):
         if event.source.type == 'group':
-            GROUP_ID = event.source.group_id  # 更新群組ID
+            GROUP_ID = event.source.group_id
             line_bot_api.reply_message(
                 event.reply_token,
                 TextSendMessage(text=f"群組ID已更新為：{GROUP_ID}")
@@ -93,6 +92,10 @@ def handle_image_message(event):
     image_content = line_bot_api.get_message_content(message_id)
     image_path = f'static/{message_id}.jpg'
     
+    # 確保 static 目錄存在
+    if not os.path.exists('static'):
+        os.makedirs('static')
+
     try:
         with open(image_path, 'wb') as fd:
             for chunk in image_content.iter_content():
