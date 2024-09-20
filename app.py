@@ -140,6 +140,18 @@ def handle_postback(event):
                 TextSendMessage(text="未找到圖片，請先發送圖片。")
             )
 
+def upload_image_to_postimage(image_path):
+    # 這裡放入你的上傳邏輯
+    try:
+        print(f'Uploading image from {image_path}')
+        # 假設上傳成功後返回 imgur_url
+        imgur_url = "your_image_url_here"  # 替換成實際的上傳邏輯
+        print(f'Image uploaded successfully: {imgur_url}')
+        return imgur_url
+    except Exception as e:
+        print(f'Error uploading image: {e}')
+        return None
+
 def upload_and_send_image(image_path, user_id, text_message=None):
     print(f"upload_and_send_image called with image_path: {image_path} and text_message: {text_message}")  # 新增日誌
     if not image_path:
