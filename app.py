@@ -233,17 +233,6 @@ def send_image_to_group(image_url, user_id, text_message=None):
                 TextSendMessage(text='圖片和文字已成功發送到群組。' if text_message else '圖片已成功發送到群組。')
             )
 
-            # 檢查並刪除 user_id 的狀態
-            if user_id in pending_texts:
-                del pending_texts[user_id]
-
-        except LineBotApiError as e:
-            print(f'Error sending image and text to group: {e}')
-            if e.status_code == 429:  # API 限制錯誤
-                line_bot_api.push_message(
-                    user_id,
-                    TextSendMessage(text="已達到每月 API 使用限制，請稍後再試。")
-                )
         except Exception as e:
             print(f'Error sending image and text to group: {e}')
     else:
