@@ -54,11 +54,13 @@ def handle_text_message(event):
     global GROUP_ID  # 確保在賦值之前聲明 global
     user_message = event.message.text
     user_id = event.source.user_id
+    source_type = event.source.type
 
-    print(f"Received message: {user_message}")
+    print(f"Received message: {user_message} from {source_type}")
 
-    if user_message.startswith('/設定群組'):
-        if event.source.type == 'group':
+    # 在群組中只處理 `/設定群組` 指令
+    if source_type == 'group':
+        if user_message.startswith('/設定群組'):
             GROUP_ID = event.source.group_id
             line_bot_api.reply_message(
                 event.reply_token,
@@ -66,58 +68,61 @@ def handle_text_message(event):
             )
             print(f"Group ID updated to: {GROUP_ID}")
         else:
-            line_bot_api.reply_message(
-                event.reply_token,
-                TextSendMessage(text="此指令只能在群組中使用。")
-            )
-    elif user_id in pending_texts:
-        if user_message.lower() == '取消':
-            del pending_texts[user_id]
-            line_bot_api.reply_message(
-                event.reply_token,
-                TextSendMessage(text='操作已取消。')
-            )
-        else:
-            image_url = pending_texts[user_id]['image_url']
-            text_message = user_message
-            executor.submit(upload_and_send_image, image_url, user_id, text_message)
+            print("Ignoring non-/設定群組 message in group.")
+            return
+    # 處理一對一聊天中的其他功能
+    elif source_type == 'user':
+        if user_id in pending_texts:
+            if user_message.lower() == '取消':
+                del pending_texts[user_id]
+                line_bot_api.reply_message(
+                    event.reply_token,
+                    TextSendMessage(text='操作已取消。')
+                )
+            else:
+                image_url = pending_texts[user_id]['image_url']
+                text_message = user_message
+                executor.submit(upload_and_send_image, image_url, user_id, text_message)
 
 @handler.add(MessageEvent, message=ImageMessage)
 def handle_image_message(event):
     user_id = event.source.user_id
-    message_id = event.message.id
+    source_type = event.source.type
 
-    image_content = line_bot_api.get_message_content(message_id)
+    # 只在一對一聊天中處理圖片
+    if source_type == 'user':
+        message_id = event.message.id
+        image_content = line_bot_api.get_message_content(message_id)
 
-    try:
-        image_url = upload_image_to_postimage(image_content)
+        try:
+            image_url = upload_image_to_postimage(image_content)
 
-        if image_url:
-            print(f'Image successfully uploaded to {image_url}')
-            pending_texts[user_id] = {'image_url': image_url}  # 更新 pending_texts
-        else:
-            raise Exception("Image upload failed")
+            if image_url:
+                print(f'Image successfully uploaded to {image_url}')
+                pending_texts[user_id] = {'image_url': image_url}  # 更新 pending_texts
+            else:
+                raise Exception("Image upload failed")
 
-    except Exception as e:
-        print(f'Error processing image: {e}')
-        reset_pending_state(user_id)  # 清理狀態
+        except Exception as e:
+            print(f'Error processing image: {e}')
+            reset_pending_state(user_id)  # 清理狀態
 
-    buttons_template = ButtonsTemplate(
-        title='選擇操作',
-        text='您希望如何處理這張圖片？',
-        actions=[
-            PostbackAction(label='直接發送', data='send_image'),
-            PostbackAction(label='添加文字', data='add_text')
-        ]
-    )
-    template_message = TemplateSendMessage(
-        alt_text='選擇操作',
-        template=buttons_template
-    )
-    line_bot_api.reply_message(
-        event.reply_token,
-        template_message
-    )
+        buttons_template = ButtonsTemplate(
+            title='選擇操作',
+            text='您希望如何處理這張圖片？',
+            actions=[
+                PostbackAction(label='直接發送', data='send_image'),
+                PostbackAction(label='添加文字', data='add_text')
+            ]
+        )
+        template_message = TemplateSendMessage(
+            alt_text='選擇操作',
+            template=buttons_template
+        )
+        line_bot_api.reply_message(
+            event.reply_token,
+            template_message
+        )
 
 @handler.add(PostbackEvent)
 def handle_postback(event):
