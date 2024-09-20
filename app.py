@@ -152,10 +152,8 @@ def handle_postback(event):
             )
 
     elif event.postback.data == 'add_text':
-        line_bot_api.reply_message(
-            event.reply_token,
-            TextSendMessage(text="請發送要添加的文字。")
-        )
+        # 處理添加文字的邏輯
+        pass
 
 def reset_pending_state(user_id):
     """重置用戶的 pending_texts 狀態"""
