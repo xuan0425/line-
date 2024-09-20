@@ -1,3 +1,6 @@
+import sys
+sys.setrecursionlimit(2000)  # 根據需要調整這個值
+
 from flask import Flask, request, abort, jsonify
 from linebot import LineBotApi, WebhookHandler
 from linebot.exceptions import InvalidSignatureError
@@ -19,7 +22,11 @@ def callback():
     try:
         handler.handle(body, signature)
     except InvalidSignatureError:
+        print("Invalid signature error")
         abort(400)
+    except Exception as e:
+        print(f"Error in callback: {e}")
+        abort(500)
 
     return 'OK'
 
@@ -30,7 +37,7 @@ def handle_text_message(event):
 
     print(f"Received message: {user_message}")
 
-    # Check if the message is the command to set the group ID
+    # 檢查是否是/設定群組指令
     if user_message.startswith('/設定群組'):
         if event.source.type == 'group':
             GROUP_ID = event.source.group_id
@@ -46,4 +53,4 @@ def handle_text_message(event):
             )
 
 if __name__ == "__main__":
-    app.run(port=10000)
+    app.run(port=10000, debug=True)  # 啟用 debug 模式
