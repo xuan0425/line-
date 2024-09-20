@@ -69,6 +69,7 @@ def handle_text_message(event):
         else:
             print("Ignoring non-/設定群組 message in group.")
             return
+
     if source_type == 'user':
         if user_id in pending_texts:
             action = pending_texts[user_id].get('action')
@@ -111,7 +112,7 @@ def handle_image_message(event):
 
             if image_url:
                 print(f'Image successfully uploaded to {image_url}')
-                pending_texts[user_id] = {'image_url': image_url}
+                pending_texts[user_id] = {'action': 'add_text', 'image_url': image_url}
             else:
                 raise Exception("Image upload failed")
 
