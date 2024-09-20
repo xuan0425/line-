@@ -138,6 +138,9 @@ def handle_image_message(event):
 def handle_postback(event):
     user_id = event.source.user_id
 
+    # 打印 pending_texts 的內容
+    print(f"Current pending texts: {pending_texts}")
+
     if event.postback.data == 'send_image':
         if user_id in pending_texts:
             image_path = pending_texts[user_id]['image_path']
@@ -147,6 +150,7 @@ def handle_postback(event):
                 event.reply_token,
                 TextSendMessage(text="未找到圖片，請先發送圖片。")
             )
+
 
 def upload_and_send_image(image_path, user_id, text_message=None):
     if not image_path:
