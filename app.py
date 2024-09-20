@@ -43,6 +43,10 @@ def callback():
 
     return 'OK'
 
+@app.route('/')
+def index():
+    return "Hello, World!"
+
 # 處理接收到的文本消息
 @handler.add(MessageEvent, message=TextMessage)
 def handle_text_message(event):
