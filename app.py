@@ -13,13 +13,8 @@ from linebot.models import (
 )
 from linebot.exceptions import InvalidSignatureError
 import concurrent.futures
-import os
 import requests  # 處理圖片上傳
-import redis  # 新增 Redis 用於跨 worker 儲存 pending_texts
 import json
-
-# 初始化 Redis 連接
-r = redis.StrictRedis(host='localhost', port=6379, db=0)
 
 app = Flask(__name__)
 socketio = SocketIO(app, async_mode=None)  # 使用同步模式
@@ -30,21 +25,6 @@ GROUP_ID = 'C1e11e203e527b7f8e9bcb2d4437925b8'
 
 pending_texts = {}
 executor = concurrent.futures.ThreadPoolExecutor(max_workers=4)
-
-# 儲存待處理的圖片到 Redis
-def save_pending_text(user_id, image_url):
-    r.set(user_id, json.dumps({'image_url': image_url}))
-
-# 從 Redis 獲取待處理的圖片
-def get_pending_text(user_id):
-    data = r.get(user_id)
-    if data:
-        return json.loads(data)
-    return None
-
-# 從 Redis 刪除待處理的圖片
-def delete_pending_text(user_id):
-    r.delete(user_id)
 
 @app.route('/callback', methods=['POST'])
 def callback():
@@ -91,13 +71,13 @@ def handle_text_message(event):
             )
     elif user_id in pending_texts:
         if user_message.lower() == '取消':
-            delete_pending_text(user_id)  # 從 Redis 刪除
+            del pending_texts[user_id]  # 從字典中刪除
             line_bot_api.reply_message(
                 event.reply_token,
                 TextSendMessage(text='操作已取消。')
             )
         else:
-            image_url = get_pending_text(user_id)['image_url']
+            image_url = pending_texts[user_id]['image_url']
             text_message = user_message
             executor.submit(upload_and_send_image, image_url, user_id, text_message)
 
@@ -114,7 +94,7 @@ def handle_image_message(event):
 
         if image_url:
             print(f'Image successfully uploaded to {image_url}')
-            save_pending_text(user_id, image_url)  # 儲存到 Redis
+            pending_texts[user_id] = {'image_url': image_url}  # 儲存到字典
         else:
             raise Exception("Image upload failed")
 
@@ -141,7 +121,7 @@ def handle_image_message(event):
 @handler.add(PostbackEvent)
 def handle_postback(event):
     user_id = event.source.user_id
-    pending_data = get_pending_text(user_id)  # 從 Redis 獲取
+    pending_data = pending_texts.get(user_id)  # 從字典獲取
 
     print(f"Pending texts for user {user_id}: {pending_data}")  # Debugging
 
@@ -149,7 +129,7 @@ def handle_postback(event):
         if pending_data:
             image_url = pending_data['image_url']
             executor.submit(upload_and_send_image, image_url, user_id)
-            delete_pending_text(user_id)  # 發送後刪除
+            del pending_texts[user_id]  # 發送後刪除
         else:
             line_bot_api.reply_message(
                 event.reply_token,
