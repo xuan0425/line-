@@ -130,19 +130,27 @@ def handle_image_message(event):
 @handler.add(PostbackEvent)
 def handle_postback(event):
     user_id = event.source.user_id
-    pending_data = pending_texts.get(user_id)
+    postback_data = event.postback.data
 
-    print(f"Pending texts for user {user_id}: {pending_data}")
-
-    if event.postback.data == 'send_image':
-        if pending_data:
-            image_url = pending_data['image_url']
-            executor.submit(upload_and_send_image, image_url, user_id)
-        else:
+    if postback_data == 'send_image':
+        # 檢查 pending_texts 是否包含圖片 URL
+        if user_id in pending_texts and 'image_url' in pending_texts[user_id]:
+            image_url = pending_texts[user_id]['image_url']
+            # 發送圖片
+            send_image_to_group(image_url)
             line_bot_api.reply_message(
                 event.reply_token,
-                TextSendMessage(text="未找到圖片，請先發送圖片。")
+                TextSendMessage(text="圖片已成功發送到群組")
             )
+            # 清理用戶狀態
+            del pending_texts[user_id]
+        else:
+            # 如果找不到圖片 URL，回傳錯誤訊息
+            line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text="未找到圖片，請重新上傳圖片")
+            )
+
     elif event.postback.data == 'add_text':
         line_bot_api.reply_message(
             event.reply_token,
