@@ -15,6 +15,7 @@ from linebot.exceptions import InvalidSignatureError
 import httpx
 import concurrent.futures
 import os
+import stat
 
 app = Flask(__name__)
 socketio = SocketIO(app, async_mode=None)  # 使用同步模式
@@ -25,6 +26,16 @@ GROUP_ID = 'C1e11e203e527b7f8e9bcb2d4437925b8'
 
 pending_texts = {}
 executor = concurrent.futures.ThreadPoolExecutor(max_workers=4)
+
+def ensure_static_folder_permissions():
+    folder = 'static'
+    if not os.path.exists(folder):
+        os.makedirs(folder)
+
+    # 檢查資料夾權限
+    current_permissions = stat.S_IMODE(os.stat(folder).st_mode)
+    if not (current_permissions & stat.S_IWUSR):  # 檢查是否可寫
+        os.chmod(folder, 0o755)  # 設定可寫權限
 
 @app.route('/callback', methods=['POST'])
 def callback():
@@ -92,14 +103,8 @@ def handle_image_message(event):
     image_content = line_bot_api.get_message_content(message_id)
     image_path = f'static/{message_id}.jpg'
     
-    # 確保 static 目錄存在
-    if not os.path.exists('static'):
-        os.makedirs('static')
-
-    # 檢查檔案權限
-    if not os.access('static', os.W_OK):
-        print("沒有權限寫入 static 資料夾")
-        return
+    # 確保 static 目錄存在並檢查權限
+    ensure_static_folder_permissions()
 
     try:
         with open(image_path, 'wb') as fd:
