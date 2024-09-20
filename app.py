@@ -1,6 +1,3 @@
-import sys
-sys.setrecursionlimit(2000)  # 設定更高的遞迴深度限制
-
 from flask import Flask, request, abort, jsonify
 from linebot import LineBotApi, WebhookHandler
 from linebot.exceptions import InvalidSignatureError
@@ -12,34 +9,30 @@ line_bot_api = LineBotApi('Xe4goaDprmptFyFWzYrTxX5TwO6bzAnvYrIGUGDxpE29pTzXeBmDm
 handler = WebhookHandler('8763f65621c328f70d1334b4d4758e46')
 GROUP_ID = 'C1e11e203e527b7f8e9bcb2d4437925b8'  
 
-@app.route("/callback", methods=["POST"])
+@app.route('/callback', methods=['POST'])
 def callback():
-    signature = request.headers.get('X-Line-Signature')
+    signature = request.headers['X-Line-Signature']
     body = request.get_data(as_text=True)
-    
-    print(f"Received body: {body}")
-    print(f"Received signature: {signature}")
+
+    print(f"Received request body: {body}")
 
     try:
         handler.handle(body, signature)
     except InvalidSignatureError:
-        print("Invalid signature")
         abort(400)
-    except Exception as e:
-        print("Error in callback:", e)
-        # Return error response to avoid further issues
-        return jsonify({'error': str(e)}), 500
 
     return 'OK'
 
 @handler.add(MessageEvent, message=TextMessage)
 def handle_text_message(event):
+    global GROUP_ID
     user_message = event.message.text
-    user_id = event.source.user_id
 
+    print(f"Received message: {user_message}")
+
+    # Check if the message is the command to set the group ID
     if user_message.startswith('/設定群組'):
         if event.source.type == 'group':
-            global GROUP_ID
             GROUP_ID = event.source.group_id
             line_bot_api.reply_message(
                 event.reply_token,
