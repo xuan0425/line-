@@ -22,7 +22,7 @@ socketio = SocketIO(app, async_mode=None)
 
 line_bot_api = LineBotApi('Xe4goaDprmptFyFWzYrTxX5TwO6bzAnvYrIGUGDxpE29pTzXeBmDmgsmLOlWSgmdAT8Kwh3ujnKC3InLDoStESGARbqQ3qTkNPlxNnqXIgrsIGSmEe7pKH4RmDzELH4mUoDhqEfdOOk++ACz8MsuegdB04t89/1O/w1cDnyilFU=') 
 handler = WebhookHandler('8763f65621c328f70d1334b4d4758e46')
-GROUP_ID = 'C1e11e203e527b7f8e9bcb2d4437925b8'  
+GROUP_ID = 'C3dca1e6da36d110cdfc734c47180e428'  
 
 pending_texts = {}
 executor = concurrent.futures.ThreadPoolExecutor(max_workers=4)
@@ -79,16 +79,23 @@ def handle_text_message(event):
                     TextSendMessage(text='操作已取消。')
                 )
             else:
-                image_url = pending_texts[user_id]['image_url']
-                text_message = user_message
-                # 保持狀態直到圖片和文字處理完畢
-                executor.submit(upload_and_send_image, image_url, user_id, text_message)
-                reset_pending_state(user_id)  # 圖片和文字處理完後清理狀態
+                # 如果選擇添加文字，保持圖片狀態
+                if 'image_url' in pending_texts[user_id]:
+                    image_url = pending_texts[user_id]['image_url']
+                    text_message = user_message
+                    executor.submit(upload_and_send_image, image_url, user_id, text_message)
+                    reset_pending_state(user_id)  # 發送後清理狀態
+                else:
+                    line_bot_api.reply_message(
+                        event.reply_token,
+                        TextSendMessage(text="請先發送圖片。")
+                    )
         else:
             line_bot_api.reply_message(
                 event.reply_token,
                 TextSendMessage(text="請先發送圖片。")
             )
+
 
 @handler.add(MessageEvent, message=ImageMessage)
 def handle_image_message(event):
