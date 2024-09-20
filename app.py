@@ -7,21 +7,22 @@ from flask import Flask, request, abort, jsonify
 from flask_socketio import SocketIO
 from linebot import LineBotApi, WebhookHandler
 from linebot.models import (
-    MessageEvent, TextMessage, ImageMessage, TextSendMessage,
+    MessageEvent, TextMessage, TextSendMessage,
     TemplateSendMessage, ButtonsTemplate,
-    PostbackAction, ImageSendMessage, PostbackEvent
+    PostbackAction, ImageMessage, ImageSendMessage, PostbackEvent
 )
 from linebot.exceptions import InvalidSignatureError
 import concurrent.futures
 import requests
+import json
 import time
 
 app = Flask(__name__)
 socketio = SocketIO(app, async_mode=None)
 
-line_bot_api = LineBotApi('Xe4goaDprmptFyFWzYrTxX5TwO6bzAnvYrIGUGDxpE29pTzXeBmDmgsmLOlWSgmdAT8Kwh3ujnKC3InLDoStESGARbqQ3qTkNPlxNnqXIgrsIGSmEe7pKH4RmDzELH4mUoDhqEfdOOk++ACz8MsuegdB04t89/1O/w1cDnyilFU=')
+line_bot_api = LineBotApi('Xe4goaDprmptFyFWzYrTxX5TwO6bzAnvYrIGUGDxpE29pTzXeBmDmgsmLOlWSgmdAT8Kwh3ujnKC3InLDoStESGARbqQ3qTkNPlxNnqXIgrsIGSmEe7pKH4RmDzELH4mUoDhqEfdOOk++ACz8MsuegdB04t89/1O/w1cDnyilFU=') 
 handler = WebhookHandler('8763f65621c328f70d1334b4d4758e46')
-GROUP_ID = 'C3dca1e6da36d110cdfc734c47180e428'
+GROUP_ID = 'C3dca1e6da36d110cdfc734c47180e428'  
 
 pending_texts = {}
 executor = concurrent.futures.ThreadPoolExecutor(max_workers=4)
@@ -48,48 +49,90 @@ def callback():
 def index():
     return "Hello, World!"
 
-# 修改處：統一處理訊息和圖片，然後發送按鈕
-@handler.add(MessageEvent, message=(TextMessage, ImageMessage))
-def handle_message(event):
+@handler.add(MessageEvent, message=TextMessage)
+def handle_text_message(event):
+    global GROUP_ID  # 確保在賦值之前聲明 global
+    user_message = event.message.text
     user_id = event.source.user_id
-    message_type = event.message.type
+    source_type = event.source.type
 
-    if message_type == 'image':
+    print(f"Received message: {user_message} from {source_type}")
+
+    # 在群組中只處理 `/設定群組` 指令
+    if source_type == 'group':
+        if user_message.startswith('/設定群組'):
+            GROUP_ID = event.source.group_id
+            line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text=f"群組ID已更新為：{GROUP_ID}")
+            )
+            print(f"Group ID updated to: {GROUP_ID}")
+        else:
+            print("Ignoring non-/設定群組 message in group.")
+            return
+    # 處理一對一聊天中的其他功能
+    elif source_type == 'user':
+        if user_id in pending_texts:
+            if user_message.lower() == '取消':
+                del pending_texts[user_id]
+                line_bot_api.reply_message(
+                    event.reply_token,
+                    TextSendMessage(text='操作已取消。')
+                )
+            else:
+                image_url = pending_texts[user_id]['image_url']
+                text_message = user_message
+                executor.submit(upload_and_send_image, image_url, user_id, text_message)
+
+@handler.add(MessageEvent, message=ImageMessage)
+def handle_image_message(event):
+    user_id = event.source.user_id
+    source_type = event.source.type
+
+    # 只在一對一聊天中處理圖片
+    if source_type == 'user':
+        # 清理狀態
+        reset_pending_state(user_id)
+
         message_id = event.message.id
         image_content = line_bot_api.get_message_content(message_id)
+
         try:
             image_url = upload_image_to_postimage(image_content)
+
             if image_url:
-                pending_texts[user_id] = {'image_url': image_url}
+                print(f'Image successfully uploaded to {image_url}')
+                pending_texts[user_id] = {'image_url': image_url}  # 更新 pending_texts
             else:
                 raise Exception("Image upload failed")
+
         except Exception as e:
             print(f'Error processing image: {e}')
-            reset_pending_state(user_id)
 
-    # 發送按鈕選項
-    buttons_template = ButtonsTemplate(
-        title='選擇操作',
-        text='您希望如何處理這張圖片？',
-        actions=[
-            PostbackAction(label='直接發送圖片', data='send_image'),
-            PostbackAction(label='發送圖片並添加文字', data='add_text')
-        ]
-    )
-    template_message = TemplateSendMessage(
-        alt_text='選擇操作',
-        template=buttons_template
-    )
-    line_bot_api.reply_message(
-        event.reply_token,
-        template_message
-    )
+        buttons_template = ButtonsTemplate(
+            title='選擇操作',
+            text='您希望如何處理這張圖片？',
+            actions=[
+                PostbackAction(label='直接發送', data='send_image'),
+                PostbackAction(label='添加文字', data='add_text')
+            ]
+        )
+        template_message = TemplateSendMessage(
+            alt_text='選擇操作',
+            template=buttons_template
+        )
+        line_bot_api.reply_message(
+            event.reply_token,
+            template_message
+        )
 
-# 處理用戶的按鈕點選操作
+
 @handler.add(PostbackEvent)
 def handle_postback(event):
     user_id = event.source.user_id
     pending_data = pending_texts.get(user_id)
+
+    print(f"Pending texts for user {user_id}: {pending_data}")
 
     if event.postback.data == 'send_image':
         if pending_data:
@@ -106,14 +149,14 @@ def handle_postback(event):
             TextSendMessage(text="請發送要添加的文字。")
         )
 
-# 重置用戶狀態
 def reset_pending_state(user_id):
+    """重置用戶的 pending_texts 狀態"""
     if user_id in pending_texts:
         del pending_texts[user_id]
         print(f'Cleared pending texts for user {user_id}')
 
-# 上傳圖片到外部托管平台並返回URL
 def upload_image_to_postimage(image_content):
+    """將圖片上傳到外部圖像托管服務，並返回圖片URL"""
     try:
         url = "https://api.imgbb.com/1/upload"
         payload = {
@@ -137,8 +180,8 @@ def upload_image_to_postimage(image_content):
         print(f'Error uploading image: {e}')
         return None
 
-# 發送圖片或圖片+文字
 def upload_and_send_image(image_url, user_id, text_message=None):
+    print(f"upload_and_send_image called with image_url: {image_url} and text_message: {text_message}")
     if not image_url:
         print('No image URL provided. Aborting upload.')
         return
@@ -147,27 +190,41 @@ def upload_and_send_image(image_url, user_id, text_message=None):
     for attempt in range(retries):
         try:
             send_image_to_group(image_url, user_id, text_message)
-            reset_pending_state(user_id)
-            break
+            del pending_texts[user_id]  # 確保這裡是發送後再刪除
+            break  # 如果成功，則跳出循環
         except Exception as e:
             print(f'Attempt {attempt + 1} failed: {e}')
-            time.sleep(2)
+            time.sleep(2)  # 等待一段時間再重試
     else:
         print('Failed to send image after multiple attempts.')
 
-# 發送圖片和文字到群組
 def send_image_to_group(image_url, user_id, text_message=None):
-    try:
-        print(f'Sending image with URL: {image_url}')
-        messages = [ImageSendMessage(original_content_url=image_url, preview_image_url=image_url)]
-        if text_message:
-            messages.append(TextSendMessage(text=text_message))
+    if image_url:
+        try:
+            print(f'Sending image with URL: {image_url}')
 
-        line_bot_api.push_message(GROUP_ID, messages)
-        line_bot_api.push_message(user_id, TextSendMessage(text='圖片已成功發送到群組。' if not text_message else '圖片和文字已成功發送到群組。'))
+            messages = [ImageSendMessage(
+                original_content_url=image_url,
+                preview_image_url=image_url
+            )]
 
-    except Exception as e:
-        print(f'Error sending image and text to group: {e}')
+            if text_message:
+                messages.append(TextSendMessage(text=text_message))
+
+            response = line_bot_api.push_message(
+                GROUP_ID,
+                messages
+            )
+            print(f'Successfully sent to group. Response: {response}')
+
+            line_bot_api.push_message(
+                user_id,
+                TextSendMessage(text='圖片和文字已成功發送到群組。' if text_message else '圖片已成功發送到群組。')
+            )
+        except Exception as e:
+            print(f'Error sending image and text to group: {e}')
+    else:
+        print('No image URL provided.')
 
 if __name__ == "__main__":
     app.run(port=10000)
