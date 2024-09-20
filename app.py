@@ -1,3 +1,6 @@
+import sys
+sys.setrecursionlimit(2000)  # 設定更高的遞迴深度限制
+
 from flask import Flask, request, abort, jsonify
 from linebot import LineBotApi, WebhookHandler
 from linebot.exceptions import InvalidSignatureError
