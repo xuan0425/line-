@@ -1,8 +1,8 @@
 import sys
 from gevent import monkey
-monkey.patch_all()  # 確保早期進行monkey patching
+monkey.patch_all()
 
-sys.setrecursionlimit(2000)  # 根據需要調整這個值
+sys.setrecursionlimit(2000)
 from flask import Flask, request, abort, jsonify
 from flask_socketio import SocketIO
 from linebot import LineBotApi, WebhookHandler
@@ -13,15 +13,16 @@ from linebot.models import (
 )
 from linebot.exceptions import InvalidSignatureError
 import concurrent.futures
-import requests  # 處理圖片上傳
+import requests
 import json
+import time
 
 app = Flask(__name__)
-socketio = SocketIO(app, async_mode=None)  # 使用同步模式
+socketio = SocketIO(app, async_mode=None)
 
 line_bot_api = LineBotApi('Xe4goaDprmptFyFWzYrTxX5TwO6bzAnvYrIGUGDxpE29pTzXeBmDmgsmLOlWSgmdAT8Kwh3ujnKC3InLDoStESGARbqQ3qTkNPlxNnqXIgrsIGSmEe7pKH4RmDzELH4mUoDhqEfdOOk++ACz8MsuegdB04t89/1O/w1cDnyilFU=') 
 handler = WebhookHandler('8763f65621c328f70d1334b4d4758e46')
-GROUP_ID = 'C1e11e203e527b7f8e9bcb2d4437925b8'
+GROUP_ID = 'C3dca1e6da36d110cdfc734c47180e428'  
 
 pending_texts = {}
 executor = concurrent.futures.ThreadPoolExecutor(max_workers=4)
@@ -71,7 +72,7 @@ def handle_text_message(event):
             )
     elif user_id in pending_texts:
         if user_message.lower() == '取消':
-            del pending_texts[user_id]  # 從字典中刪除
+            del pending_texts[user_id]
             line_bot_api.reply_message(
                 event.reply_token,
                 TextSendMessage(text='操作已取消。')
@@ -89,12 +90,11 @@ def handle_image_message(event):
     image_content = line_bot_api.get_message_content(message_id)
 
     try:
-        # 將圖片上傳到外部服務
         image_url = upload_image_to_postimage(image_content)
 
         if image_url:
             print(f'Image successfully uploaded to {image_url}')
-            pending_texts[user_id] = {'image_url': image_url}  # 儲存到字典
+            pending_texts[user_id] = {'image_url': image_url}
         else:
             raise Exception("Image upload failed")
 
@@ -121,15 +121,14 @@ def handle_image_message(event):
 @handler.add(PostbackEvent)
 def handle_postback(event):
     user_id = event.source.user_id
-    pending_data = pending_texts.get(user_id)  # 從字典獲取
+    pending_data = pending_texts.get(user_id)
 
-    print(f"Pending texts for user {user_id}: {pending_data}")  # Debugging
+    print(f"Pending texts for user {user_id}: {pending_data}")
 
     if event.postback.data == 'send_image':
         if pending_data:
             image_url = pending_data['image_url']
             executor.submit(upload_and_send_image, image_url, user_id)
-            del pending_texts[user_id]  # 發送後刪除
         else:
             line_bot_api.reply_message(
                 event.reply_token,
@@ -167,11 +166,17 @@ def upload_and_send_image(image_url, user_id, text_message=None):
         print('No image URL provided. Aborting upload.')
         return
 
-    send_image_to_group(image_url, user_id, text_message)
-    
-    # 發送後再刪除
-    del pending_texts[user_id]  # 確保這裡是發送後再刪除
-
+    retries = 3
+    for attempt in range(retries):
+        try:
+            send_image_to_group(image_url, user_id, text_message)
+            del pending_texts[user_id]  # 確保這裡是發送後再刪除
+            break  # 如果成功，則跳出循環
+        except Exception as e:
+            print(f'Attempt {attempt + 1} failed: {e}')
+            time.sleep(2)  # 等待一段時間再重試
+    else:
+        print('Failed to send image after multiple attempts.')
 
 def send_image_to_group(image_url, user_id, text_message=None):
     if image_url:
