@@ -83,6 +83,7 @@ def handle_text_message(event):
 
 @handler.add(MessageEvent, message=ImageMessage)
 def handle_image_message(event):
+    global pending_texts  # 確保使用全局變數
     user_id = event.source.user_id
     message_id = event.message.id
 
@@ -132,9 +133,9 @@ def handle_image_message(event):
 
 @handler.add(PostbackEvent)
 def handle_postback(event):
+    global pending_texts  # 確保使用全局變數
     user_id = event.source.user_id
     print(f"Pending texts for user {user_id}: {pending_texts.get(user_id)}")  # 新增日誌
-
 
     if event.postback.data == 'send_image':
         if user_id in pending_texts:
