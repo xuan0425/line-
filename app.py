@@ -20,9 +20,9 @@ import time
 app = Flask(__name__)
 socketio = SocketIO(app, async_mode=None)
 
-line_bot_api = LineBotApi('Xe4goaDprmptFyFWzYrTxX5TwO6bzAnvYrIGUGDxpE29pTzXeBmDmgsmLOlWSgmdAT8Kwh3ujnKC3InLDoStESGARbqQ3qTkNPlxNnqXIgrsIGSmEe7pKH4RmDzELH4mUoDhqEfdOOk++ACz8MsuegdB04t89/1O/w1cDnyilFU=') 
-handler = WebhookHandler('8763f65621c328f70d1334b4d4758e46')
-GROUP_ID = 'C3dca1e6da36d110cdfc734c47180e428'  
+line_bot_api = LineBotApi('YOUR_CHANNEL_ACCESS_TOKEN')
+handler = WebhookHandler('YOUR_CHANNEL_SECRET')
+GROUP_ID = 'YOUR_GROUP_ID'
 
 pending_texts = {}
 executor = concurrent.futures.ThreadPoolExecutor(max_workers=4)
@@ -51,14 +51,13 @@ def index():
 
 @handler.add(MessageEvent, message=TextMessage)
 def handle_text_message(event):
-    global GROUP_ID  # 確保在賦值之前聲明 global
+    global GROUP_ID
     user_message = event.message.text
     user_id = event.source.user_id
     source_type = event.source.type
 
     print(f"Received message: {user_message} from {source_type}")
 
-    # 在群組中只處理 `/設定群組` 指令
     if source_type == 'group':
         if user_message.startswith('/設定群組'):
             GROUP_ID = event.source.group_id
@@ -70,7 +69,6 @@ def handle_text_message(event):
         else:
             print("Ignoring non-/設定群組 message in group.")
             return
-    # 處理一對一聊天中的其他功能
     elif source_type == 'user':
         if user_id in pending_texts:
             if user_message.lower() == '取消':
@@ -89,9 +87,7 @@ def handle_image_message(event):
     user_id = event.source.user_id
     source_type = event.source.type
 
-    # 只在一對一聊天中處理圖片
     if source_type == 'user':
-        # 清理狀態
         reset_pending_state(user_id)
 
         message_id = event.message.id
@@ -102,7 +98,7 @@ def handle_image_message(event):
 
             if image_url:
                 print(f'Image successfully uploaded to {image_url}')
-                pending_texts[user_id] = {'image_url': image_url}  # 更新 pending_texts
+                pending_texts[user_id] = {'image_url': image_url}
             else:
                 raise Exception("Image upload failed")
 
@@ -126,47 +122,41 @@ def handle_image_message(event):
             template_message
         )
 
-
 @handler.add(PostbackEvent)
 def handle_postback(event):
     user_id = event.source.user_id
     postback_data = event.postback.data
 
     if postback_data == 'send_image':
-        # 檢查 pending_texts 是否包含圖片 URL
         if user_id in pending_texts and 'image_url' in pending_texts[user_id]:
             image_url = pending_texts[user_id]['image_url']
-            # 發送圖片
-            send_image_to_group(image_url)
+            # 發送圖片並傳遞 user_id
+            send_image_to_group(image_url, user_id)
             line_bot_api.reply_message(
                 event.reply_token,
                 TextSendMessage(text="圖片已成功發送到群組")
             )
-            # 清理用戶狀態
             del pending_texts[user_id]
         else:
-            # 如果找不到圖片 URL，回傳錯誤訊息
             line_bot_api.reply_message(
                 event.reply_token,
                 TextSendMessage(text="未找到圖片，請重新上傳圖片")
             )
 
-    elif event.postback.data == 'add_text':
+    elif postback_data == 'add_text':
         # 處理添加文字的邏輯
         pass
 
 def reset_pending_state(user_id):
-    """重置用戶的 pending_texts 狀態"""
     if user_id in pending_texts:
         del pending_texts[user_id]
         print(f'Cleared pending texts for user {user_id}')
 
 def upload_image_to_postimage(image_content):
-    """將圖片上傳到外部圖像托管服務，並返回圖片URL"""
     try:
         url = "https://api.imgbb.com/1/upload"
         payload = {
-            "key": "9084929272af9aef3bcbb7c7b8517f67",
+            "key": "YOUR_IMGBB_API_KEY",
         }
         files = {
             'image': image_content.content
@@ -196,11 +186,11 @@ def upload_and_send_image(image_url, user_id, text_message=None):
     for attempt in range(retries):
         try:
             send_image_to_group(image_url, user_id, text_message)
-            del pending_texts[user_id]  # 確保這裡是發送後再刪除
-            break  # 如果成功，則跳出循環
+            del pending_texts[user_id]
+            break
         except Exception as e:
             print(f'Attempt {attempt + 1} failed: {e}')
-            time.sleep(2)  # 等待一段時間再重試
+            time.sleep(2)
     else:
         print('Failed to send image after multiple attempts.')
 
