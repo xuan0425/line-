@@ -14,19 +14,37 @@ from linebot.models import (
 from linebot.exceptions import InvalidSignatureError
 import concurrent.futures
 import os
-import requests  # 這裡新增 requests 庫來處理圖片上傳
-import threading  # 新增 threading 來處理 pending_texts 的同步問題
+import requests  # 處理圖片上傳
+import redis  # 新增 Redis 用於跨 worker 儲存 pending_texts
+import json
+
+# 初始化 Redis 連接
+r = redis.StrictRedis(host='localhost', port=6379, db=0)
 
 app = Flask(__name__)
 socketio = SocketIO(app, async_mode=None)  # 使用同步模式
 
 line_bot_api = LineBotApi('Xe4goaDprmptFyFWzYrTxX5TwO6bzAnvYrIGUGDxpE29pTzXeBmDmgsmLOlWSgmdAT8Kwh3ujnKC3InLDoStESGARbqQ3qTkNPlxNnqXIgrsIGSmEe7pKH4RmDzELH4mUoDhqEfdOOk++ACz8MsuegdB04t89/1O/w1cDnyilFU=') 
 handler = WebhookHandler('8763f65621c328f70d1334b4d4758e46')
-GROUP_ID = 'C1e11e203e527b7f8e9bcb2d4437925b8'  
+GROUP_ID = 'C1e11e203e527b7f8e9bcb2d4437925b8'
 
-pending_texts_lock = threading.Lock()  # 新增一個鎖來保護 pending_texts 的訪問
 pending_texts = {}
 executor = concurrent.futures.ThreadPoolExecutor(max_workers=4)
+
+# 儲存待處理的圖片到 Redis
+def save_pending_text(user_id, image_url):
+    r.set(user_id, json.dumps({'image_url': image_url}))
+
+# 從 Redis 獲取待處理的圖片
+def get_pending_text(user_id):
+    data = r.get(user_id)
+    if data:
+        return json.loads(data)
+    return None
+
+# 從 Redis 刪除待處理的圖片
+def delete_pending_text(user_id):
+    r.delete(user_id)
 
 @app.route('/callback', methods=['POST'])
 def callback():
@@ -71,19 +89,17 @@ def handle_text_message(event):
                 event.reply_token,
                 TextSendMessage(text="此指令只能在群組中使用。")
             )
-    else:
-        with pending_texts_lock:
-            if user_id in pending_texts:
-                if user_message.lower() == '取消':
-                    del pending_texts[user_id]
-                    line_bot_api.reply_message(
-                        event.reply_token,
-                        TextSendMessage(text='操作已取消。')
-                    )
-                else:
-                    image_url = pending_texts[user_id]['image_url']
-                    text_message = user_message
-                    executor.submit(upload_and_send_image, image_url, user_id, text_message)
+    elif user_id in pending_texts:
+        if user_message.lower() == '取消':
+            delete_pending_text(user_id)  # 從 Redis 刪除
+            line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text='操作已取消。')
+            )
+        else:
+            image_url = get_pending_text(user_id)['image_url']
+            text_message = user_message
+            executor.submit(upload_and_send_image, image_url, user_id, text_message)
 
 @handler.add(MessageEvent, message=ImageMessage)
 def handle_image_message(event):
@@ -98,9 +114,7 @@ def handle_image_message(event):
 
         if image_url:
             print(f'Image successfully uploaded to {image_url}')
-            with pending_texts_lock:
-                pending_texts[user_id] = {'image_url': image_url}
-            print(f"Updated pending_texts: {pending_texts}")  # 新增日誌
+            save_pending_text(user_id, image_url)  # 儲存到 Redis
         else:
             raise Exception("Image upload failed")
 
@@ -127,23 +141,24 @@ def handle_image_message(event):
 @handler.add(PostbackEvent)
 def handle_postback(event):
     user_id = event.source.user_id
-    print(f"Pending texts for user {user_id}: {pending_texts.get(user_id)}")  # 新增日誌
+    pending_data = get_pending_text(user_id)  # 從 Redis 獲取
 
-    with pending_texts_lock:
-        if event.postback.data == 'send_image':
-            if user_id in pending_texts:
-                image_url = pending_texts[user_id]['image_url']
-                executor.submit(upload_and_send_image, image_url, user_id)
-            else:
-                line_bot_api.reply_message(
-                    event.reply_token,
-                    TextSendMessage(text="未找到圖片，請先發送圖片。")
-                )
+    print(f"Pending texts for user {user_id}: {pending_data}")  # Debugging
+
+    if event.postback.data == 'send_image':
+        if pending_data:
+            image_url = pending_data['image_url']
+            executor.submit(upload_and_send_image, image_url, user_id)
+            delete_pending_text(user_id)  # 發送後刪除
+        else:
+            line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text="未找到圖片，請先發送圖片。")
+            )
 
 def upload_image_to_postimage(image_content):
     """將圖片上傳到外部圖像托管服務，並返回圖片URL"""
     try:
-        # 這裡使用圖像托管 API 上傳圖片，以下是 ImgBB API 的示例
         url = "https://api.imgbb.com/1/upload"
         payload = {
             "key": "9084929272af9aef3bcbb7c7b8517f67",
@@ -167,19 +182,17 @@ def upload_image_to_postimage(image_content):
         return None
 
 def upload_and_send_image(image_url, user_id, text_message=None):
-    print(f"upload_and_send_image called with image_url: {image_url} and text_message: {text_message}")  # 新增日誌
+    print(f"upload_and_send_image called with image_url: {image_url} and text_message: {text_message}")
     if not image_url:
         print('No image URL provided. Aborting upload.')
         return
-
-    print(f'Starting upload_and_send_image with {image_url}')  # Debugging line
 
     send_image_to_group(image_url, user_id, text_message)
 
 def send_image_to_group(image_url, user_id, text_message=None):
     if image_url:
         try:
-            print(f'Sending image with URL: {image_url}')  # Debugging line
+            print(f'Sending image with URL: {image_url}')
 
             messages = [ImageSendMessage(
                 original_content_url=image_url,
@@ -193,7 +206,7 @@ def send_image_to_group(image_url, user_id, text_message=None):
                 GROUP_ID,
                 messages
             )
-            print(f'Successfully sent to group. Response: {response}')  # Debugging line
+            print(f'Successfully sent to group. Response: {response}')
 
             line_bot_api.push_message(
                 user_id,
