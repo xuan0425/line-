@@ -123,6 +123,21 @@ def handle_image_message(event):
         event.reply_token,
         template_message
     )
+    
+@handler.add(PostbackEvent)
+def handle_postback(event):
+    user_id = event.source.user_id
+
+    if event.postback.data == 'send_image':
+        if user_id in pending_texts:
+            image_path = pending_texts[user_id]['image_path']
+            executor.submit(upload_and_send_image, image_path, user_id)
+        else:
+            line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text="未找到圖片，請先發送圖片。")
+            )
+
 
 def upload_and_send_image(image_path, user_id, text_message=None):
     if not image_path:
