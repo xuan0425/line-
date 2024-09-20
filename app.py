@@ -231,8 +231,8 @@ def send_image_to_group(image_url, user_id, text_message=None):
             line_bot_api.push_message(
                 user_id,
                 TextSendMessage(text='圖片和文字已成功發送到群組。' if text_message else '圖片已成功發送到群組。')
-                del pending_texts[user_id]
             )
+            del pending_texts[user_id]
         except Exception as e:
             print(f'Error sending image and text to group: {e}')
     else:
