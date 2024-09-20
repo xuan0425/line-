@@ -18,9 +18,9 @@ import os
 app = Flask(__name__)
 socketio = SocketIO(app, async_mode=None)  # 使用同步模式
 
-line_bot_api = LineBotApi('YOUR_CHANNEL_ACCESS_TOKEN') 
-handler = WebhookHandler('YOUR_CHANNEL_SECRET')
-GROUP_ID = 'C1e11e203e527b7f8e9bcb2d4437925b8'
+line_bot_api = LineBotApi('Xe4goaDprmptFyFWzYrTxX5TwO6bzAnvYrIGUGDxpE29pTzXeBmDmgsmLOlWSgmdAT8Kwh3ujnKC3InLDoStESGARbqQ3qTkNPlxNnqXIgrsIGSmEe7pKH4RmDzELH4mUoDhqEfdOOk++ACz8MsuegdB04t89/1O/w1cDnyilFU=') 
+handler = WebhookHandler('8763f65621c328f70d1334b4d4758e46')
+GROUP_ID = 'C1e11e203e527b7f8e9bcb2d4437925b8'  
 
 pending_texts = {}
 executor = concurrent.futures.ThreadPoolExecutor(max_workers=4)
