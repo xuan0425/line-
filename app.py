@@ -51,14 +51,13 @@ def index():
 
 @handler.add(MessageEvent, message=TextMessage)
 def handle_text_message(event):
-    global GROUP_ID  # 確保在賦值之前聲明 global
+    global GROUP_ID
     user_message = event.message.text
     user_id = event.source.user_id
     source_type = event.source.type
 
     print(f"Received message: {user_message} from {source_type}")
 
-    # 在群組中只處理 `/設定群組` 指令
     if source_type == 'group':
         if user_message.startswith('/設定群組'):
             GROUP_ID = event.source.group_id
@@ -70,11 +69,11 @@ def handle_text_message(event):
         else:
             print("Ignoring non-/設定群組 message in group.")
             return
-    # 處理一對一聊天中的其他功能
+
     elif source_type == 'user':
         if user_id in pending_texts:
             if user_message.lower() == '取消':
-                del pending_texts[user_id]
+                reset_pending_state(user_id)
                 line_bot_api.reply_message(
                     event.reply_token,
                     TextSendMessage(text='操作已取消。')
@@ -82,7 +81,14 @@ def handle_text_message(event):
             else:
                 image_url = pending_texts[user_id]['image_url']
                 text_message = user_message
+                # 保持狀態直到圖片和文字處理完畢
                 executor.submit(upload_and_send_image, image_url, user_id, text_message)
+                reset_pending_state(user_id)  # 圖片和文字處理完後清理狀態
+        else:
+            line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text="請先發送圖片。")
+            )
 
 @handler.add(MessageEvent, message=ImageMessage)
 def handle_image_message(event):
