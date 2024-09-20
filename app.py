@@ -14,22 +14,17 @@ from linebot.models import (
 from linebot.exceptions import InvalidSignatureError
 import concurrent.futures
 import os
+import requests  # 這裡新增 requests 庫來處理圖片上傳
 
 app = Flask(__name__)
 socketio = SocketIO(app, async_mode=None)  # 使用同步模式
 
-line_bot_api = LineBotApi('Xe4goaDprmptFyFWzYrTxX5TwO6bzAnvYrIGUGDxpE29pTzXeBmDmgsmLOlWSgmdAT8Kwh3ujnKC3InLDoStESGARbqQ3qTkNPlxNnqXIgrsIGSmEe7pKH4RmDzELH4mUoDhqEfdOOk++ACz8MsuegdB04t89/1O/w1cDnyilFU=') 
-handler = WebhookHandler('8763f65621c328f70d1334b4d4758e46')
-GROUP_ID = 'C1e11e203e527b7f8e9bcb2d4437925b8'  
+line_bot_api = LineBotApi('你的_LINE_BOT_API')
+handler = WebhookHandler('你的_WEBHOOK_HANDLER')
+GROUP_ID = '你的_群組_ID'  
 
 pending_texts = {}
 executor = concurrent.futures.ThreadPoolExecutor(max_workers=4)
-
-def ensure_static_directory():
-    """確保 static 目錄存在，如果不存在則創建它。"""
-    if not os.path.exists('static'):
-        os.makedirs('static')
-        print("Created 'static' directory.")
 
 @app.route('/callback', methods=['POST'])
 def callback():
@@ -82,31 +77,30 @@ def handle_text_message(event):
                 TextSendMessage(text='操作已取消。')
             )
         else:
-            image_path = pending_texts[user_id]['image_path']
+            image_url = pending_texts[user_id]['image_url']
             text_message = user_message
-            executor.submit(upload_and_send_image, image_path, user_id, text_message)
+            executor.submit(upload_and_send_image, image_url, user_id, text_message)
 
 @handler.add(MessageEvent, message=ImageMessage)
 def handle_image_message(event):
     user_id = event.source.user_id
     message_id = event.message.id
 
-    ensure_static_directory()  # 確保 static 目錄存在
-
     image_content = line_bot_api.get_message_content(message_id)
-    image_path = f'static/{message_id}.jpg'
 
     try:
-        with open(image_path, 'wb') as fd:
-            for chunk in image_content.iter_content():
-                fd.write(chunk)
+        # 將圖片上傳到外部服務
+        image_url = upload_image_to_postimage(image_content)
 
-        print(f'Image successfully downloaded to {image_path}')
-        pending_texts[user_id] = {'image_path': image_path}
-        print(f"Updated pending_texts: {pending_texts}")  # 新增日誌
-        
+        if image_url:
+            print(f'Image successfully uploaded to {image_url}')
+            pending_texts[user_id] = {'image_url': image_url}
+            print(f"Updated pending_texts: {pending_texts}")  # 新增日誌
+        else:
+            raise Exception("Image upload failed")
+
     except Exception as e:
-        print(f'Error saving image: {e}')
+        print(f'Error processing image: {e}')
 
     buttons_template = ButtonsTemplate(
         title='選擇操作',
@@ -132,50 +126,58 @@ def handle_postback(event):
 
     if event.postback.data == 'send_image':
         if user_id in pending_texts:
-            image_path = pending_texts[user_id]['image_path']
-            executor.submit(upload_and_send_image, image_path, user_id)
+            image_url = pending_texts[user_id]['image_url']
+            executor.submit(upload_and_send_image, image_url, user_id)
         else:
             line_bot_api.reply_message(
                 event.reply_token,
                 TextSendMessage(text="未找到圖片，請先發送圖片。")
             )
 
-def upload_image_to_postimage(image_path):
-    # 這裡放入你的上傳邏輯
+def upload_image_to_postimage(image_content):
+    """將圖片上傳到外部圖像托管服務，並返回圖片URL"""
     try:
-        print(f'Uploading image from {image_path}')
-        # 假設上傳成功後返回 imgur_url
-        imgur_url = "your_image_url_here"  # 替換成實際的上傳邏輯
-        print(f'Image uploaded successfully: {imgur_url}')
-        return imgur_url
+        # 這裡使用圖像托管 API 上傳圖片，以下是 ImgBB API 的示例
+        url = "https://api.imgbb.com/1/upload"
+        payload = {
+            "key": "9084929272af9aef3bcbb7c7b8517f67",
+        }
+        files = {
+            'image': image_content.content
+        }
+        response = requests.post(url, data=payload, files=files)
+        data = response.json()
+
+        if response.status_code == 200 and data['success']:
+            imgur_url = data['data']['url']
+            print(f'Image uploaded successfully: {imgur_url}')
+            return imgur_url
+        else:
+            print(f'Failed to upload image: {response.text}')
+            return None
+
     except Exception as e:
         print(f'Error uploading image: {e}')
         return None
 
-def upload_and_send_image(image_path, user_id, text_message=None):
-    print(f"upload_and_send_image called with image_path: {image_path} and text_message: {text_message}")  # 新增日誌
-    if not image_path:
-        print('No image path provided. Aborting upload.')
+def upload_and_send_image(image_url, user_id, text_message=None):
+    print(f"upload_and_send_image called with image_url: {image_url} and text_message: {text_message}")  # 新增日誌
+    if not image_url:
+        print('No image URL provided. Aborting upload.')
         return
 
-    print(f'Starting upload_and_send_image with {image_path}')  # Debugging line
-    imgur_url = upload_image_to_postimage(image_path)
-    
-    print(f'Uploaded image URL: {imgur_url}')  # 新增日誌
+    print(f'Starting upload_and_send_image with {image_url}')  # Debugging line
 
-    if imgur_url:
-        send_image_to_group(imgur_url, user_id, text_message)
-    else:
-        print('Image upload failed. No URL returned.')
+    send_image_to_group(image_url, user_id, text_message)
 
-def send_image_to_group(imgur_url, user_id, text_message=None):
-    if imgur_url:
+def send_image_to_group(image_url, user_id, text_message=None):
+    if image_url:
         try:
-            print(f'Sending image with URL: {imgur_url}')  # Debugging line
+            print(f'Sending image with URL: {image_url}')  # Debugging line
 
             messages = [ImageSendMessage(
-                original_content_url=imgur_url,
-                preview_image_url=imgur_url
+                original_content_url=image_url,
+                preview_image_url=image_url
             )]
 
             if text_message:
