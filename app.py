@@ -168,6 +168,10 @@ def upload_and_send_image(image_url, user_id, text_message=None):
         return
 
     send_image_to_group(image_url, user_id, text_message)
+    
+    # 發送後再刪除
+    del pending_texts[user_id]  # 確保這裡是發送後再刪除
+
 
 def send_image_to_group(image_url, user_id, text_message=None):
     if image_url:
