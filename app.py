@@ -69,27 +69,31 @@ def handle_text_message(event):
         else:
             print("Ignoring non-/設定群組 message in group.")
             return
-    elif source_type == 'user':
+    if source_type == 'user':
         if user_id in pending_texts:
-            if pending_texts[user_id].get('action') == 'add_text':
+            action = pending_texts[user_id].get('action')
+            if action == 'add_text':
                 text_message = user_message
-                image_url = pending_texts[user_id]['image_url']
-                executor.submit(upload_and_send_image, image_url, user_id, text_message)
-                del pending_texts[user_id]  # 清除狀態
-                line_bot_api.reply_message(
-                    event.reply_token,
-                    TextSendMessage(text='文字已成功添加。')
-                )
-                return
-            if user_message.lower() == '取消':
+                image_url = pending_texts[user_id].get('image_url')
+
+                if image_url:  # 確保有 image_url
+                    executor.submit(upload_and_send_image, image_url, user_id, text_message)
+                    del pending_texts[user_id]  # 清除狀態
+                    line_bot_api.reply_message(
+                        event.reply_token,
+                        TextSendMessage(text='文字已成功添加。')
+                    )
+                else:
+                    line_bot_api.reply_message(
+                        event.reply_token,
+                        TextSendMessage(text='找不到圖片，請重新上傳。')
+                    )
+            elif user_message.lower() == '取消':
                 del pending_texts[user_id]
                 line_bot_api.reply_message(
                     event.reply_token,
                     TextSendMessage(text='操作已取消。')
                 )
-            else:
-                image_url = pending_texts[user_id]['image_url']
-                executor.submit(upload_and_send_image, image_url, user_id, user_message)
 
 @handler.add(MessageEvent, message=ImageMessage)
 def handle_image_message(event):
