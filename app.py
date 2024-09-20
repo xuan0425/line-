@@ -19,9 +19,9 @@ import requests  # 這裡新增 requests 庫來處理圖片上傳
 app = Flask(__name__)
 socketio = SocketIO(app, async_mode=None)  # 使用同步模式
 
-line_bot_api = LineBotApi('你的_LINE_BOT_API')
-handler = WebhookHandler('你的_WEBHOOK_HANDLER')
-GROUP_ID = '你的_群組_ID'  
+line_bot_api = LineBotApi('Xe4goaDprmptFyFWzYrTxX5TwO6bzAnvYrIGUGDxpE29pTzXeBmDmgsmLOlWSgmdAT8Kwh3ujnKC3InLDoStESGARbqQ3qTkNPlxNnqXIgrsIGSmEe7pKH4RmDzELH4mUoDhqEfdOOk++ACz8MsuegdB04t89/1O/w1cDnyilFU=') 
+handler = WebhookHandler('8763f65621c328f70d1334b4d4758e46')
+GROUP_ID = 'C1e11e203e527b7f8e9bcb2d4437925b8'  
 
 pending_texts = {}
 executor = concurrent.futures.ThreadPoolExecutor(max_workers=4)
