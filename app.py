@@ -22,7 +22,7 @@ socketio = SocketIO(app, async_mode=None)
 
 line_bot_api = LineBotApi('Xe4goaDprmptFyFWzYrTxX5TwO6bzAnvYrIGUGDxpE29pTzXeBmDmgsmLOlWSgmdAT8Kwh3ujnKC3InLDoStESGARbqQ3qTkNPlxNnqXIgrsIGSmEe7pKH4RmDzELH4mUoDhqEfdOOk++ACz8MsuegdB04t89/1O/w1cDnyilFU=') 
 handler = WebhookHandler('8763f65621c328f70d1334b4d4758e46')
-GROUP_ID = 'C3dca1e6da36d110cdfc734c47180e428'  
+GROUP_ID = 'C1e11e203e527b7f8e9bcb2d4437925b8'  
 
 pending_texts = {}
 executor = concurrent.futures.ThreadPoolExecutor(max_workers=4)
@@ -170,7 +170,7 @@ def upload_and_send_image(image_url, user_id, text_message=None):
     for attempt in range(retries):
         try:
             send_image_to_group(image_url, user_id, text_message)
-            del pending_texts[user_id]  # 確保這裡是發送後再刪除
+            # 不立即刪除 pending_texts[user_id]
             break  # 如果成功，則跳出循環
         except Exception as e:
             print(f'Attempt {attempt + 1} failed: {e}')
