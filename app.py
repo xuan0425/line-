@@ -108,6 +108,7 @@ def handle_image_message(event):
 
         print(f'Image successfully downloaded to {image_path}')
         pending_texts[user_id] = {'image_path': image_path}
+        print(f"Updated pending_texts: {pending_texts}")  # 新增日誌
         
     except Exception as e:
         print(f'Error saving image: {e}')
@@ -132,6 +133,8 @@ def handle_image_message(event):
 @handler.add(PostbackEvent)
 def handle_postback(event):
     user_id = event.source.user_id
+    print(f"Pending texts for user {user_id}: {pending_texts.get(user_id)}")  # 新增日誌
+
 
     if event.postback.data == 'send_image':
         if user_id in pending_texts:
@@ -144,6 +147,7 @@ def handle_postback(event):
             )
 
 def upload_and_send_image(image_path, user_id, text_message=None):
+    print(f"upload_and_send_image called with image_path: {image_path} and text_message: {text_message}")  # 新增日誌
     if not image_path:
         print('No image path provided. Aborting upload.')
         return
