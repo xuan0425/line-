@@ -20,12 +20,9 @@ import time
 app = Flask(__name__)
 socketio = SocketIO(app, async_mode=None)
 
-LINE_BOT_API_KEY = 'Xe4goaDprmptFyFWzYrTxX5TwO6bzAnvYrIGUGDxpE29pTzXeBmDmgsmLOlWSgmdAT8Kwh3ujnKC3InLDoStESGARbqQ3qTkNPlxNnqXIgrsIGSmEe7pKH4RmDzELH4mUoDhqEfdOOk++ACz8MsuegdB04t89/1O/w1cDnyilFU='
-WEBHOOK_HANDLER_SECRET = '8763f65621c328f70d1334b4d4758e46'
-GROUP_ID = 'C3dca1e6da36d110cdfc734c47180e428'
-
-line_bot_api = LineBotApi(LINE_BOT_API_KEY)
-handler = WebhookHandler(WEBHOOK_HANDLER_SECRET)
+line_bot_api = LineBotApi('Xe4goaDprmptFyFWzYrTxX5TwO6bzAnvYrIGUGDxpE29pTzXeBmDmgsmLOlWSgmdAT8Kwh3ujnKC3InLDoStESGARbqQ3qTkNPlxNnqXIgrsIGSmEe7pKH4RmDzELH4mUoDhqEfdOOk++ACz8MsuegdB04t89/1O/w1cDnyilFU=') 
+handler = WebhookHandler('8763f65621c328f70d1334b4d4758e46')
+GROUP_ID = 'C3dca1e6da36d110cdfc734c47180e428'  
 
 pending_texts = {}
 executor = concurrent.futures.ThreadPoolExecutor(max_workers=4)
@@ -54,6 +51,7 @@ def index():
 
 @handler.add(MessageEvent, message=TextMessage)
 def handle_text_message(event):
+    global GROUP_ID
     user_message = event.message.text
     user_id = event.source.user_id
     source_type = event.source.type
@@ -61,74 +59,78 @@ def handle_text_message(event):
     print(f"Received message: {user_message} from {source_type}")
 
     if source_type == 'group':
-        handle_group_message(event, user_message)
-    elif source_type == 'user':
-        handle_user_message(event, user_id, user_message)
-
-def handle_group_message(event, user_message):
-    global GROUP_ID
-    if user_message.startswith('/設定群組'):
-        GROUP_ID = event.source.group_id
-        line_bot_api.reply_message(
-            event.reply_token,
-            TextSendMessage(text=f"群組ID已更新為：{GROUP_ID}")
-        )
-        print(f"Group ID updated to: {GROUP_ID}")
-    else:
-        print("Ignoring non-/設定群組 message in group.")
-
-def handle_user_message(event, user_id, user_message):
-    if user_id in pending_texts:
-        if pending_texts[user_id].get('action') == 'add_text':
-            text_message = user_message
-            image_url = pending_texts[user_id]['image_url']
-            executor.submit(upload_and_send_image, image_url, user_id, text_message)
-            del pending_texts[user_id]  # 清除狀態
-            return
-        if user_message.lower() == '取消':
-            del pending_texts[user_id]
+        if user_message.startswith('/設定群組'):
+            GROUP_ID = event.source.group_id
             line_bot_api.reply_message(
                 event.reply_token,
-                TextSendMessage(text='操作已取消。')
+                TextSendMessage(text=f"群組ID已更新為：{GROUP_ID}")
             )
+            print(f"Group ID updated to: {GROUP_ID}")
         else:
-            image_url = pending_texts[user_id]['image_url']
-            executor.submit(upload_and_send_image, image_url, user_id, user_message)
+            print("Ignoring non-/設定群組 message in group.")
+            return
+    elif source_type == 'user':
+        if user_id in pending_texts:
+            if pending_texts[user_id].get('action') == 'add_text':
+                text_message = user_message
+                image_url = pending_texts[user_id]['image_url']
+                executor.submit(upload_and_send_image, image_url, user_id, text_message)
+                del pending_texts[user_id]  # 清除狀態
+                line_bot_api.reply_message(
+                    event.reply_token,
+                    TextSendMessage(text='文字已成功添加。')
+                )
+                return
+            if user_message.lower() == '取消':
+                del pending_texts[user_id]
+                line_bot_api.reply_message(
+                    event.reply_token,
+                    TextSendMessage(text='操作已取消。')
+                )
+            else:
+                image_url = pending_texts[user_id]['image_url']
+                executor.submit(upload_and_send_image, image_url, user_id, user_message)
 
 @handler.add(MessageEvent, message=ImageMessage)
 def handle_image_message(event):
     user_id = event.source.user_id
-    reset_pending_state(user_id)
+    source_type = event.source.type
 
-    message_id = event.message.id
-    image_content = line_bot_api.get_message_content(message_id)
+    if source_type == 'user':
+        reset_pending_state(user_id)
 
-    try:
-        image_url = upload_image_to_postimage(image_content)
-        if image_url:
-            print(f'Image successfully uploaded to {image_url}')
-            pending_texts[user_id] = {'image_url': image_url}
-            prompt_user_action(event.reply_token)
-        else:
-            raise Exception("Image upload failed")
+        message_id = event.message.id
+        image_content = line_bot_api.get_message_content(message_id)
 
-    except Exception as e:
-        print(f'Error processing image: {e}')
+        try:
+            image_url = upload_image_to_postimage(image_content)
 
-def prompt_user_action(reply_token):
-    buttons_template = ButtonsTemplate(
-        title='選擇操作',
-        text='您希望如何處理這張圖片？',
-        actions=[
-            PostbackAction(label='直接發送', data='send_image'),
-            PostbackAction(label='添加文字', data='add_text')
-        ]
-    )
-    template_message = TemplateSendMessage(
-        alt_text='選擇操作',
-        template=buttons_template
-    )
-    line_bot_api.reply_message(reply_token, template_message)
+            if image_url:
+                print(f'Image successfully uploaded to {image_url}')
+                pending_texts[user_id] = {'image_url': image_url}
+            else:
+                raise Exception("Image upload failed")
+
+        except Exception as e:
+            print(f'Error processing image: {e}')
+            return  # 直接返回避免後續執行
+
+        buttons_template = ButtonsTemplate(
+            title='選擇操作',
+            text='您希望如何處理這張圖片？',
+            actions=[
+                PostbackAction(label='直接發送', data='send_image'),
+                PostbackAction(label='添加文字', data='add_text')
+            ]
+        )
+        template_message = TemplateSendMessage(
+            alt_text='選擇操作',
+            template=buttons_template
+        )
+        line_bot_api.reply_message(
+            event.reply_token,
+            template_message
+        )
 
 @handler.add(PostbackEvent)
 def handle_postback(event):
@@ -136,31 +138,26 @@ def handle_postback(event):
     postback_data = event.postback.data
 
     if postback_data == 'send_image':
-        send_image_handler(event, user_id)
+        if user_id in pending_texts and 'image_url' in pending_texts[user_id]:
+            image_url = pending_texts[user_id]['image_url']
+            send_image_to_group(image_url, user_id)
+            line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text="圖片已成功發送到群組。")
+            )
+            del pending_texts[user_id]
+        else:
+            line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text="未找到圖片，請重新上傳圖片")
+            )
+
     elif postback_data == 'add_text':
-        request_add_text(event, user_id)
-
-def send_image_handler(event, user_id):
-    if user_id in pending_texts and 'image_url' in pending_texts[user_id]:
-        image_url = pending_texts[user_id]['image_url']
-        send_image_to_group(image_url, user_id)
         line_bot_api.reply_message(
             event.reply_token,
-            TextSendMessage(text="圖片已成功發送到群組。")
+            TextSendMessage(text='請發送您要添加的文字。')
         )
-        del pending_texts[user_id]
-    else:
-        line_bot_api.reply_message(
-            event.reply_token,
-            TextSendMessage(text="未找到圖片，請重新上傳圖片")
-        )
-
-def request_add_text(event, user_id):
-    line_bot_api.reply_message(
-        event.reply_token,
-        TextSendMessage(text='請發送您要添加的文字。')
-    )
-    pending_texts[user_id] = {'action': 'add_text'}  # 記錄當前狀態
+        pending_texts[user_id] = {'action': 'add_text'}  # 記錄當前狀態
 
 def reset_pending_state(user_id):
     if user_id in pending_texts:
@@ -221,7 +218,10 @@ def send_image_to_group(image_url, user_id, text_message=None):
             if text_message:
                 messages.append(TextSendMessage(text=text_message))
 
-            response = line_bot_api.push_message(GROUP_ID, messages)
+            response = line_bot_api.push_message(
+                GROUP_ID,
+                messages
+            )
             print(f'Successfully sent to group. Response: {response}')
 
             line_bot_api.push_message(
