@@ -48,6 +48,7 @@ def callback():
 def handle_text_message(event):
     global GROUP_ID
     user_message = event.message.text
+    user_id = event.source.user_id  # 確保 user_id 可用
 
     print(f"Received message: {user_message}")
 
@@ -171,6 +172,8 @@ def send_image_to_group(imgur_url, user_id, text_message=None):
 
             if text_message:
                 messages.append(TextSendMessage(text=text_message))
+
+            print(f'Messages to be sent: {messages}')  # Debugging line
 
             response = line_bot_api.push_message(
                 GROUP_ID,
