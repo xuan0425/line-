@@ -96,6 +96,11 @@ def handle_image_message(event):
     if not os.path.exists('static'):
         os.makedirs('static')
 
+    # 檢查檔案權限
+    if not os.access('static', os.W_OK):
+        print("沒有權限寫入 static 資料夾")
+        return
+
     try:
         with open(image_path, 'wb') as fd:
             for chunk in image_content.iter_content():
@@ -123,7 +128,7 @@ def handle_image_message(event):
         event.reply_token,
         template_message
     )
-    
+
 @handler.add(PostbackEvent)
 def handle_postback(event):
     user_id = event.source.user_id
@@ -137,7 +142,6 @@ def handle_postback(event):
                 event.reply_token,
                 TextSendMessage(text="未找到圖片，請先發送圖片。")
             )
-
 
 def upload_and_send_image(image_path, user_id, text_message=None):
     if not image_path:
