@@ -93,12 +93,16 @@ def handle_image_message(event):
     image_content = line_bot_api.get_message_content(message_id)
     image_path = f'static/{message_id}.jpg'
     
-    with open(image_path, 'wb') as fd:
-        for chunk in image_content.iter_content():
-            fd.write(chunk)
+    try:
+        with open(image_path, 'wb') as fd:
+            for chunk in image_content.iter_content():
+                fd.write(chunk)
 
-    print(f'Image successfully downloaded to {image_path}')
-    pending_texts[user_id] = {'image_path': image_path}
+        print(f'Image successfully downloaded to {image_path}')
+        pending_texts[user_id] = {'image_path': image_path}
+        
+    except Exception as e:
+        print(f'Error saving image: {e}')
 
     buttons_template = ButtonsTemplate(
         title='選擇操作',
@@ -117,52 +121,18 @@ def handle_image_message(event):
         template_message
     )
 
-@handler.add(PostbackEvent)
-def handle_postback(event):
-    user_id = event.source.user_id
-    data = event.postback.data
-
-    print(f'Postback event data: {data}')  # Debugging line
-
-    if user_id in pending_texts:
-        image_path = pending_texts[user_id]['image_path']
-
-        if data == 'send_image':
-            print('Handling send_image postback')  # Debugging line
-            executor.submit(upload_and_send_image, image_path, user_id)
-
-        elif data == 'add_text':
-            print('Handling add_text postback')  # Debugging line
-            line_bot_api.reply_message(
-                event.reply_token,
-                TextSendMessage(text='請發送您想轉發的文字。')
-            )
-
-def upload_image_to_postimage(image_path):
-    url = 'https://postimages.org/json/upload'
-    try:
-        with open(image_path, 'rb') as image_file:
-            files = {'file': image_file}
-            response = httpx.post(url, files=files)
-            print(f'PostImage response: {response.text}')  # Debugging line
-            response_json = response.json()
-
-            if response_json.get('status') == 'success':
-                print(f'Image URL: {response_json["data"]["url"]}')  # Debugging line
-                return response_json['data']['url']
-            else:
-                print('Error uploading image to PostImage:', response_json)
-                return None
-    except Exception as e:
-        print(f'Exception uploading image to PostImage: {e}')
-        return None
-
 def upload_and_send_image(image_path, user_id, text_message=None):
+    if not image_path:
+        print('No image path provided. Aborting upload.')
+        return
+
     print(f'Starting upload_and_send_image with {image_path}')  # Debugging line
     imgur_url = upload_image_to_postimage(image_path)
-    print(f'Image uploaded to: {imgur_url}')  # Debugging line
+    
     if imgur_url:
         send_image_to_group(imgur_url, user_id, text_message)
+    else:
+        print('Image upload failed. No URL returned.')
 
 def send_image_to_group(imgur_url, user_id, text_message=None):
     if imgur_url:
@@ -176,8 +146,6 @@ def send_image_to_group(imgur_url, user_id, text_message=None):
 
             if text_message:
                 messages.append(TextSendMessage(text=text_message))
-
-            print(f'Messages to be sent: {messages}')  # Debugging line
 
             response = line_bot_api.push_message(
                 GROUP_ID,
