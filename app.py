@@ -12,16 +12,15 @@ from linebot.models import (
     PostbackAction, ImageMessage, ImageSendMessage, PostbackEvent
 )
 from linebot.exceptions import InvalidSignatureError
-import httpx
 import concurrent.futures
 import os
 
 app = Flask(__name__)
 socketio = SocketIO(app, async_mode=None)  # 使用同步模式
 
-line_bot_api = LineBotApi('Xe4goaDprmptFyFWzYrTxX5TwO6bzAnvYrIGUGDxpE29pTzXeBmDmgsmLOlWSgmdAT8Kwh3ujnKC3InLDoStESGARbqQ3qTkNPlxNnqXIgrsIGSmEe7pKH4RmDzELH4mUoDhqEfdOOk++ACz8MsuegdB04t89/1O/w1cDnyilFU=') 
-handler = WebhookHandler('8763f65621c328f70d1334b4d4758e46')
-GROUP_ID = 'C1e11e203e527b7f8e9bcb2d4437925b8'   
+line_bot_api = LineBotApi('YOUR_CHANNEL_ACCESS_TOKEN') 
+handler = WebhookHandler('YOUR_CHANNEL_SECRET')
+GROUP_ID = 'C1e11e203e527b7f8e9bcb2d4437925b8'
 
 pending_texts = {}
 executor = concurrent.futures.ThreadPoolExecutor(max_workers=4)
@@ -92,18 +91,10 @@ def handle_image_message(event):
     user_id = event.source.user_id
     message_id = event.message.id
 
-    if event.source.type == 'group':
-        return
-
     ensure_static_directory()  # 確保 static 目錄存在
 
     image_content = line_bot_api.get_message_content(message_id)
     image_path = f'static/{message_id}.jpg'
-
-    # 檢查檔案權限
-    if not os.access('static', os.W_OK):
-        print("沒有權限寫入 static 資料夾")
-        return
 
     try:
         with open(image_path, 'wb') as fd:
