@@ -73,28 +73,26 @@ def handle_text_message(event):
     elif source_type == 'user':
         if user_id in pending_texts:
             if user_message.lower() == '取消':
-                reset_pending_state(user_id)
+                del pending_texts[user_id]
                 line_bot_api.reply_message(
                     event.reply_token,
                     TextSendMessage(text='操作已取消。')
                 )
+            elif 'image_url' in pending_texts[user_id]:
+                image_url = pending_texts[user_id]['image_url']
+                text_message = user_message
+                executor.submit(upload_and_send_image, image_url, user_id, text_message)
             else:
-                # 如果選擇添加文字，保持圖片狀態
-                if 'image_url' in pending_texts[user_id]:
-                    image_url = pending_texts[user_id]['image_url']
-                    text_message = user_message
-                    executor.submit(upload_and_send_image, image_url, user_id, text_message)
-                    reset_pending_state(user_id)  # 發送後清理狀態
-                else:
-                    line_bot_api.reply_message(
-                        event.reply_token,
-                        TextSendMessage(text="請先發送圖片。")
-                    )
+                line_bot_api.reply_message(
+                    event.reply_token,
+                    TextSendMessage(text="未找到圖片，請先發送圖片。")
+                )
         else:
             line_bot_api.reply_message(
                 event.reply_token,
                 TextSendMessage(text="請先發送圖片。")
             )
+
 
 
 @handler.add(MessageEvent, message=ImageMessage)
