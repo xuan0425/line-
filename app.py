@@ -22,7 +22,7 @@ socketio = SocketIO(app, async_mode=None)
 
 line_bot_api = LineBotApi('Xe4goaDprmptFyFWzYrTxX5TwO6bzAnvYrIGUGDxpE29pTzXeBmDmgsmLOlWSgmdAT8Kwh3ujnKC3InLDoStESGARbqQ3qTkNPlxNnqXIgrsIGSmEe7pKH4RmDzELH4mUoDhqEfdOOk++ACz8MsuegdB04t89/1O/w1cDnyilFU=') 
 handler = WebhookHandler('8763f65621c328f70d1334b4d4758e46')
-GROUP_ID = 'C3dca1e6da36d110cdfc734c47180e428'  
+GROUP_ID = 'C1e11e203e527b7f8e9bcb2d4437925b8'  
 
 pending_texts = {}
 executor = concurrent.futures.ThreadPoolExecutor(max_workers=4)
@@ -100,6 +100,7 @@ def handle_image_message(event):
 
     except Exception as e:
         print(f'Error processing image: {e}')
+        reset_pending_state(user_id)  # 清理狀態
 
     buttons_template = ButtonsTemplate(
         title='選擇操作',
@@ -134,6 +135,17 @@ def handle_postback(event):
                 event.reply_token,
                 TextSendMessage(text="未找到圖片，請先發送圖片。")
             )
+    elif event.postback.data == 'add_text':
+        line_bot_api.reply_message(
+            event.reply_token,
+            TextSendMessage(text="請發送要添加的文字。")
+        )
+
+def reset_pending_state(user_id):
+    """重置用戶的 pending_texts 狀態"""
+    if user_id in pending_texts:
+        del pending_texts[user_id]
+        print(f'Cleared pending texts for user {user_id}')
 
 def upload_image_to_postimage(image_content):
     """將圖片上傳到外部圖像托管服務，並返回圖片URL"""
