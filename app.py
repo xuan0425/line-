@@ -71,6 +71,12 @@ def handle_text_message(event):
             return
     elif source_type == 'user':
         if user_id in pending_texts:
+            if pending_texts[user_id].get('action') == 'add_text':
+                text_message = user_message
+                image_url = pending_texts[user_id]['image_url']
+                executor.submit(upload_and_send_image, image_url, user_id, text_message)
+                del pending_texts[user_id]  # 清除狀態
+                return
             if user_message.lower() == '取消':
                 del pending_texts[user_id]
                 line_bot_api.reply_message(
@@ -79,8 +85,8 @@ def handle_text_message(event):
                 )
             else:
                 image_url = pending_texts[user_id]['image_url']
-                text_message = user_message
-                executor.submit(upload_and_send_image, image_url, user_id, text_message)
+                executor.submit(upload_and_send_image, image_url, user_id, user_message)
+
 
 @handler.add(MessageEvent, message=ImageMessage)
 def handle_image_message(event):
@@ -131,11 +137,10 @@ def handle_postback(event):
     if postback_data == 'send_image':
         if user_id in pending_texts and 'image_url' in pending_texts[user_id]:
             image_url = pending_texts[user_id]['image_url']
-            # 發送圖片並傳遞 user_id
             send_image_to_group(image_url, user_id)
             line_bot_api.reply_message(
                 event.reply_token,
-                TextSendMessage(text="圖片已成功發送到群組")
+                TextSendMessage(text="圖片已成功下載。")
             )
             del pending_texts[user_id]
         else:
@@ -145,8 +150,13 @@ def handle_postback(event):
             )
 
     elif postback_data == 'add_text':
-        # 處理添加文字的邏輯
-        pass
+        # 當用戶選擇添加文字時，請求用戶發送文字
+        line_bot_api.reply_message(
+            event.reply_token,
+            TextSendMessage(text='請發送您要添加的文字。')
+        )
+        pending_texts[user_id] = {'action': 'add_text'}  # 記錄當前狀態
+
 
 def reset_pending_state(user_id):
     if user_id in pending_texts:
