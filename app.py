@@ -96,16 +96,19 @@ def handle_image_message(event):
     if not os.path.exists('static'):
         os.makedirs('static')
 
+    # 檢查檔案權限
+    if not os.access('static', os.W_OK):
+        print("沒有權限寫入 static 資料夾")
+        return
+
     try:
         with open(image_path, 'wb') as fd:
             for chunk in image_content.iter_content():
                 fd.write(chunk)
 
         print(f'Image successfully downloaded to {image_path}')
-        # 確保在這裡正確地更新 pending_texts
         pending_texts[user_id] = {'image_path': image_path}
-        print(f"Updated pending_texts: {pending_texts}")  # 打印 pending_texts 的內容
-
+        
     except Exception as e:
         print(f'Error saving image: {e}')
 
@@ -148,6 +151,8 @@ def upload_and_send_image(image_path, user_id, text_message=None):
     print(f'Starting upload_and_send_image with {image_path}')  # Debugging line
     imgur_url = upload_image_to_postimage(image_path)
     
+    print(f'Uploaded image URL: {imgur_url}')  # 新增日誌
+
     if imgur_url:
         send_image_to_group(imgur_url, user_id, text_message)
     else:
