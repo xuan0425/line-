@@ -26,6 +26,12 @@ GROUP_ID = 'C1e11e203e527b7f8e9bcb2d4437925b8'
 pending_texts = {}
 executor = concurrent.futures.ThreadPoolExecutor(max_workers=4)
 
+def ensure_static_directory():
+    """確保 static 目錄存在，如果不存在則創建它。"""
+    if not os.path.exists('static'):
+        os.makedirs('static')
+        print("Created 'static' directory.")
+
 @app.route('/callback', methods=['POST'])
 def callback():
     signature = request.headers.get('X-Line-Signature')
@@ -83,19 +89,16 @@ def handle_text_message(event):
 
 @handler.add(MessageEvent, message=ImageMessage)
 def handle_image_message(event):
-    global pending_texts  # 確保使用全局變數
     user_id = event.source.user_id
     message_id = event.message.id
 
     if event.source.type == 'group':
         return
 
+    ensure_static_directory()  # 確保 static 目錄存在
+
     image_content = line_bot_api.get_message_content(message_id)
     image_path = f'static/{message_id}.jpg'
-    
-    # 確保 static 目錄存在
-    if not os.path.exists('static'):
-        os.makedirs('static')
 
     # 檢查檔案權限
     if not os.access('static', os.W_OK):
@@ -133,7 +136,6 @@ def handle_image_message(event):
 
 @handler.add(PostbackEvent)
 def handle_postback(event):
-    global pending_texts  # 確保使用全局變數
     user_id = event.source.user_id
     print(f"Pending texts for user {user_id}: {pending_texts.get(user_id)}")  # 新增日誌
 
