@@ -21,7 +21,7 @@ socketio = SocketIO(app, async_mode=None)
 
 line_bot_api = LineBotApi(os.getenv('LINE_BOT_API'))
 handler = WebhookHandler(os.getenv('LINE_HANDLER'))
-GROUP_ID = 'C3dca1e6da36d110cdfc734c47180e428'
+GROUP_ID = ('C3dca1e6da36d110cdfc734c47180e428')
 
 pending_texts = {}
 executor = concurrent.futures.ThreadPoolExecutor(max_workers=4)
@@ -82,9 +82,7 @@ def handle_text_message(event):
             print("Ignoring non-/設定群組 message in group.")
             return
 
-    elif source_type == 'user':
-        reset_pending_state(user_id)
-
+    if source_type == 'user':
         if user_id in pending_texts:
             action = pending_texts[user_id].get('action')
             if action == 'add_text':
@@ -108,11 +106,6 @@ def handle_text_message(event):
                     event.reply_token,
                     TextSendMessage(text='操作已取消。')
                 )
-        else:
-            line_bot_api.reply_message(
-                event.reply_token,
-                TextSendMessage(text='請先上傳圖片或選擇操作。')
-            )
 
 @handler.add(MessageEvent, message=ImageMessage)
 def handle_image_message(event):
@@ -167,7 +160,11 @@ def handle_postback(event):
     if postback_data == 'send_image':
         if user_id in pending_texts and 'image_url' in pending_texts[user_id]:
             image_url = pending_texts[user_id]['image_url']
-            send_image_with_fallback(image_url, GROUP_ID, "圖片已成功發送到群組。", f"圖片網址：{image_url}")
+            send_image_to_group(image_url, user_id)
+            line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text="圖片已成功發送到群組。")
+            )
             del pending_texts[user_id]
         else:
             line_bot_api.reply_message(
@@ -208,24 +205,48 @@ def upload_image_to_postimage(image_content):
         print(f"Error uploading image: {e}")
         return None
 
-def send_image_with_fallback(image_url, group_id, text, fallback_message):
+def send_image_to_group(image_url, user_id):
+    global GROUP_ID
     try:
+        if not GROUP_ID:
+            raise Exception("GROUP_ID is empty or not set")
+
+        print(f"Sending image to group {GROUP_ID}")
+
         line_bot_api.push_message(
-            group_id,
-            TextSendMessage(text=text)
+            GROUP_ID,
+            TextSendMessage(text=f"圖片網址：{image_url}")
         )
+        print(f"Image URL sent to group {GROUP_ID}")
+        del pending_texts[user_id]
+
     except LineBotApiError as e:
         if e.status_code == 429:
             print("Reached monthly limit, sending URL instead.")
             line_bot_api.push_message(
-                group_id,
-                TextSendMessage(text=f"{fallback_message}（發送圖片失敗，達到限制）")
+                GROUP_ID,
+                TextSendMessage(text=f"圖片網址：{image_url}（發送圖片失敗，達到限制）")
             )
         else:
-            print(f"Error sending message to group: {e}")
+            print(f"Error sending image URL to group: {e}")
 
 def upload_and_send_image(image_url, user_id, text_message):
-    send_image_with_fallback(image_url, GROUP_ID, f"圖片網址：{image_url}\n附加的文字：{text_message}", f"圖片網址：{image_url}")
+    try:
+        line_bot_api.push_message(
+            GROUP_ID,
+            TextSendMessage(text=f"圖片網址：{image_url}\n附加的文字：{text_message}")
+        )
+        print(f"Image with text sent to group {GROUP_ID}")
+
+    except LineBotApiError as e:
+        if e.status_code == 429:
+            print("Reached monthly limit, sending URL instead.")
+            line_bot_api.push_message(
+                GROUP_ID,
+                TextSendMessage(text=f"圖片網址：{image_url}\n附加的文字：{text_message}（發送圖片失敗，達到限制）")
+            )
+        else:
+            print(f"Error sending image with text to group: {e}")
 
 if __name__ == "__main__":
     socketio.run(app, port=10000)
