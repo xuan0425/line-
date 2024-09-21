@@ -11,12 +11,13 @@ from linebot.models import (
     TemplateSendMessage, ButtonsTemplate,
     PostbackAction, ImageMessage, ImageSendMessage, PostbackEvent
 )
-from linebot.exceptions import InvalidSignatureError
+from linebot.exceptions import InvalidSignatureError, LineBotApiError  # 添加 LineBotApiError
 import concurrent.futures
 import requests
 import json
 import time
 import os
+
 
 app = Flask(__name__)
 socketio = SocketIO(app, async_mode=None)
