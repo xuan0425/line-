@@ -23,7 +23,7 @@ socketio = SocketIO(app, async_mode=None)
 
 line_bot_api = LineBotApi(os.getenv('LINE_BOT_API'))  # 使用環境變數
 handler = WebhookHandler(os.getenv('LINE_HANDLER'))
-GROUP_ID = os.getenv('C3dca1e6da36d110cdfc734c47180e428')
+GROUP_ID = ('C3dca1e6da36d110cdfc734c47180e428')
 
 pending_texts = {}
 executor = concurrent.futures.ThreadPoolExecutor(max_workers=4)
