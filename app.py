@@ -210,12 +210,11 @@ def upload_image_to_postimage(image_content):
 def send_image_to_group(image_url, user_id):
     global GROUP_ID
     try:
-        # 確認 GROUP_ID 是否正確
         if not GROUP_ID:
             raise Exception("GROUP_ID is empty or not set")
 
-        print(f"Sending image to group {GROUP_ID}")  # 打印群組ID進行確認
-
+        print(f"Sending image to group {GROUP_ID}")
+        
         line_bot_api.push_message(
             GROUP_ID,
             TextSendMessage(text=f"圖片網址：{image_url}")
@@ -223,20 +222,33 @@ def send_image_to_group(image_url, user_id):
         print(f"Image URL sent to group {GROUP_ID}")
         del pending_texts[user_id]
 
-    except Exception as e:
-        print(f"Error sending image URL to group: {e}")
+    except LineBotApiError as e:
+        if e.status_code == 429:  # 達到限制
+            print("Reached monthly limit, sending URL instead.")
+            line_bot_api.push_message(
+                GROUP_ID,
+                TextSendMessage(text=f"圖片網址：{image_url}（發送圖片失敗，達到限制）")
+            )
+        else:
+            print(f"Error sending image URL to group: {e}")
 
 def upload_and_send_image(image_url, user_id, text_message):
     try:
-        # 在此處上傳並處理圖片和文字的結合，並將圖片網址發送到群組
         line_bot_api.push_message(
             GROUP_ID,
             TextSendMessage(text=f"圖片網址：{image_url}\n附加的文字：{text_message}")
         )
         print(f"Image with text sent to group {GROUP_ID}")
 
-    except Exception as e:
-        print(f"Error sending image with text to group: {e}")
+    except LineBotApiError as e:
+        if e.status_code == 429:
+            print("Reached monthly limit, sending URL instead.")
+            line_bot_api.push_message(
+                GROUP_ID,
+                TextSendMessage(text=f"圖片網址：{image_url}\n附加的文字：{text_message}（發送圖片失敗，達到限制）")
+            )
+        else:
+            print(f"Error sending image with text to group: {e}")
 
 if __name__ == "__main__":
     socketio.run(app, port=10000)
