@@ -210,6 +210,12 @@ def upload_image_to_postimage(image_content):
 def send_image_to_group(image_url, user_id):
     global GROUP_ID
     try:
+        # 確認 GROUP_ID 是否正確
+        if not GROUP_ID:
+            raise Exception("GROUP_ID is empty or not set")
+
+        print(f"Sending image to group {GROUP_ID}")  # 打印群組ID進行確認
+
         line_bot_api.push_message(
             GROUP_ID,
             ImageSendMessage(
@@ -223,7 +229,6 @@ def send_image_to_group(image_url, user_id):
     except Exception as e:
         print(f"Error sending image to group: {e}")
 
-    time.sleep(1)
     
 def upload_and_send_image(image_url, user_id, text_message):
     try:
