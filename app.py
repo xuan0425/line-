@@ -220,14 +220,7 @@ def send_image_to_group(image_url, user_id):
         print(f"Image URL sent to group {GROUP_ID}")
 
     except LineBotApiError as e:
-        if e.status_code == 429:
-            print("Reached monthly limit, sending URL instead.")
-            line_bot_api.push_message(
-                GROUP_ID,
-                TextSendMessage(text=f"圖片網址：{image_url}（發送圖片失敗，達到限制）")
-            )
-        else:
-            print(f"Error sending image URL to group: {e}")
+        print(f"Error sending image URL to group: {e}")
     finally:
         reset_pending_state(user_id)
 
@@ -240,16 +233,10 @@ def upload_and_send_image(image_url, user_id, text_message):
         print(f"Image with text sent to group {GROUP_ID}")
 
     except LineBotApiError as e:
-        if e.status_code == 429:
-            print("Reached monthly limit, sending URL instead.")
-            line_bot_api.push_message(
-                GROUP_ID,
-                TextSendMessage(text=f"圖片網址：{image_url}\n附加的文字：{text_message}（發送圖片失敗，達到限制）")
-            )
-        else:
-            print(f"Error sending image with text to group: {e}")
+        print(f"Error sending image with text to group: {e}")
     finally:
         reset_pending_state(user_id)
+
 
 
 if __name__ == "__main__":
