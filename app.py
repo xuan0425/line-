@@ -215,7 +215,8 @@ def send_image_to_group(image_url, user_id):
             raise Exception("GROUP_ID is empty or not set")
 
         print(f"Sending image to group {GROUP_ID}")
-        
+
+        # 嘗試發送圖片
         line_bot_api.push_message(
             GROUP_ID,
             TextSendMessage(text=f"圖片網址：{image_url}")
@@ -224,14 +225,16 @@ def send_image_to_group(image_url, user_id):
         del pending_texts[user_id]
 
     except LineBotApiError as e:
-        if e.status_code == 429:  # 達到限制
+        if e.status_code == 429:
             print("Reached monthly limit, sending URL instead.")
+            # 發送圖片 URL 而不是直接發送圖片
             line_bot_api.push_message(
                 GROUP_ID,
-                TextSendMessage(text=f"圖片網址：{image_url}（發送圖片失敗，達到限制）")
+                TextSendMessage(text=f"圖片網址：{image_url}")
             )
         else:
             print(f"Error sending image URL to group: {e}")
+
 
 def upload_and_send_image(image_url, user_id, text_message):
     try:
