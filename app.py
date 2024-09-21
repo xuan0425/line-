@@ -27,6 +27,15 @@ GROUP_ID = 'C3dca1e6da36d110cdfc734c47180e428'
 pending_texts = {}
 executor = concurrent.futures.ThreadPoolExecutor(max_workers=4)
 
+# API 使用狀況
+api_usage_count = 0
+
+# 紀錄 API 請求次數
+def track_api_usage():
+    global api_usage_count
+    api_usage_count += 1
+    print(f"API requests count: {api_usage_count}")
+
 @app.route('/callback', methods=['POST'])
 def callback():
     signature = request.headers.get('X-Line-Signature')
@@ -44,6 +53,10 @@ def callback():
         abort(500)
 
     return 'OK'
+
+@app.route('/api_usage', methods=['GET'])
+def get_api_usage():
+    return jsonify({"api_usage_count": api_usage_count})
 
 @app.route('/')
 def index():
@@ -202,6 +215,7 @@ def upload_and_send_image(image_url, user_id, text_message=None):
     for attempt in range(retries):
         try:
             send_image_to_group(image_url, user_id, text_message)
+            track_api_usage()  # 記錄成功發送 API 請求次數
             break
         except Exception as e:
             print(f'Attempt {attempt + 1} failed: {e}')
@@ -262,7 +276,6 @@ def send_image_to_group(image_url, user_id, text_message=None):
                 print(f'Error sending image and text to group: {e}')
     else:
         print('No image URL provided.')
-
 
 
 if __name__ == "__main__":
