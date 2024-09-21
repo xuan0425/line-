@@ -214,6 +214,7 @@ def send_image_to_group(image_url, user_id, text_message=None):
         try:
             print(f'Sending image with URL: {image_url}')
 
+            # 嘗試發送圖片
             messages = [ImageSendMessage(
                 original_content_url=image_url,
                 preview_image_url=image_url
@@ -228,15 +229,31 @@ def send_image_to_group(image_url, user_id, text_message=None):
             )
             print(f'Successfully sent to group. Response: {response}')
 
+            # 成功發送圖片後，通知用戶
             line_bot_api.push_message(
                 user_id,
                 TextSendMessage(text='圖片和文字已成功發送到群組。' if text_message else '圖片已成功發送到群組。')
             )
 
         except Exception as e:
-            print(f'Error sending image and text to group: {e}')
+            if 'status_code=429' in str(e):
+                # 達到 API 限制，改發送圖片連結
+                print(f'API limit reached, sending image link instead: {image_url}')
+                line_bot_api.push_message(
+                    GROUP_ID,
+                    TextSendMessage(text=f"由於達到 API 限制，請點擊以下鏈接查看圖片：{image_url}")
+                )
+
+                # 發送通知用戶，告知改發送了圖片連結
+                line_bot_api.push_message(
+                    user_id,
+                    TextSendMessage(text=f'由於達到 API 限制，已發送圖片鏈接至群組：{image_url}')
+                )
+            else:
+                print(f'Error sending image and text to group: {e}')
     else:
         print('No image URL provided.')
+
 
 
 if __name__ == "__main__":
