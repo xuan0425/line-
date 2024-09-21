@@ -218,21 +218,17 @@ def send_image_to_group(image_url, user_id):
 
         line_bot_api.push_message(
             GROUP_ID,
-            ImageSendMessage(
-                original_content_url=image_url,
-                preview_image_url=image_url
-            )
+            TextSendMessage(text=f"圖片網址：{image_url}")
         )
-        print(f"Image sent to group {GROUP_ID}")
+        print(f"Image URL sent to group {GROUP_ID}")
         del pending_texts[user_id]
 
     except Exception as e:
-        print(f"Error sending image to group: {e}")
+        print(f"Error sending image URL to group: {e}")
 
-    
 def upload_and_send_image(image_url, user_id, text_message):
     try:
-        # 在此處上傳並處理圖片和文字的結合，並將圖片發送到群組
+        # 在此處上傳並處理圖片和文字的結合，並將圖片網址發送到群組
         line_bot_api.push_message(
             GROUP_ID,
             TextSendMessage(text=f"圖片網址：{image_url}\n附加的文字：{text_message}")
