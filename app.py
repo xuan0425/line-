@@ -21,15 +21,13 @@ socketio = SocketIO(app, async_mode=None)
 
 line_bot_api = LineBotApi(os.getenv('LINE_BOT_API'))
 handler = WebhookHandler(os.getenv('LINE_HANDLER'))
-GROUP_ID = ('C3dca1e6da36d110cdfc734c47180e428')
+GROUP_ID = 'C3dca1e6da36d110cdfc734c47180e428'
 
 pending_texts = {}
 executor = concurrent.futures.ThreadPoolExecutor(max_workers=4)
 
-# API 使用狀況
 api_usage_count = 0
 
-# 紀錄 API 請求次數
 def track_api_usage():
     global api_usage_count
     api_usage_count += 1
@@ -100,6 +98,7 @@ def handle_text_message(event):
                         event.reply_token,
                         TextSendMessage(text='找不到圖片，請重新上傳。')
                     )
+                    del pending_texts[user_id]  # Clear pending state on failure
             elif user_message.lower() == '取消':
                 del pending_texts[user_id]
                 line_bot_api.reply_message(
@@ -236,8 +235,6 @@ def upload_and_send_image(image_url, user_id, text_message):
         print(f"Error sending image with text to group: {e}")
     finally:
         reset_pending_state(user_id)
-
-
 
 if __name__ == "__main__":
     socketio.run(app, port=10000)
