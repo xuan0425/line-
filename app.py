@@ -218,7 +218,6 @@ def send_image_to_group(image_url, user_id):
             TextSendMessage(text=f"圖片網址：{image_url}")
         )
         print(f"Image URL sent to group {GROUP_ID}")
-        del pending_texts[user_id]
 
     except LineBotApiError as e:
         if e.status_code == 429:
@@ -229,6 +228,8 @@ def send_image_to_group(image_url, user_id):
             )
         else:
             print(f"Error sending image URL to group: {e}")
+    finally:
+        reset_pending_state(user_id)
 
 def upload_and_send_image(image_url, user_id, text_message):
     try:
@@ -247,6 +248,9 @@ def upload_and_send_image(image_url, user_id, text_message):
             )
         else:
             print(f"Error sending image with text to group: {e}")
+    finally:
+        reset_pending_state(user_id)
+
 
 if __name__ == "__main__":
     socketio.run(app, port=10000)
