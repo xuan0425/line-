@@ -11,18 +11,17 @@ from linebot.models import (
     TemplateSendMessage, ButtonsTemplate,
     PostbackAction, ImageMessage, ImageSendMessage, PostbackEvent
 )
-from linebot.exceptions import InvalidSignatureError, LineBotApiError  # 添加 LineBotApiError
+from linebot.exceptions import InvalidSignatureError, LineBotApiError
 import concurrent.futures
 import requests
 import json
 import time
 import os
 
-
 app = Flask(__name__)
 socketio = SocketIO(app, async_mode=None)
 
-line_bot_api = LineBotApi(os.getenv('LINE_BOT_API'))  # 使用環境變數
+line_bot_api = LineBotApi(os.getenv('LINE_BOT_API'))
 handler = WebhookHandler(os.getenv('LINE_HANDLER'))
 GROUP_ID = ('C3dca1e6da36d110cdfc734c47180e428')
 
@@ -191,7 +190,7 @@ def upload_image_to_postimage(image_content):
     try:
         url = "https://api.imgbb.com/1/upload"
         payload = {
-            "key": os.getenv('IMGBB_API_KEY'),  # 使用環境變數
+            "key": os.getenv('IMGBB_API_KEY'),
         }
         files = {
             'image': image_content.content
@@ -216,7 +215,6 @@ def send_image_to_group(image_url, user_id):
 
         print(f"Sending image to group {GROUP_ID}")
 
-        # 嘗試發送圖片
         line_bot_api.push_message(
             GROUP_ID,
             TextSendMessage(text=f"圖片網址：{image_url}")
@@ -227,14 +225,12 @@ def send_image_to_group(image_url, user_id):
     except LineBotApiError as e:
         if e.status_code == 429:
             print("Reached monthly limit, sending URL instead.")
-            # 發送圖片 URL 而不是直接發送圖片
             line_bot_api.push_message(
                 GROUP_ID,
-                TextSendMessage(text=f"圖片網址：{image_url}")
+                TextSendMessage(text=f"圖片網址：{image_url}（發送圖片失敗，達到限制）")
             )
         else:
             print(f"Error sending image URL to group: {e}")
-
 
 def upload_and_send_image(image_url, user_id, text_message):
     try:
