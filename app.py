@@ -16,13 +16,14 @@ import concurrent.futures
 import requests
 import json
 import time
+import os
 
 app = Flask(__name__)
 socketio = SocketIO(app, async_mode=None)
 
-line_bot_api = LineBotApi('Xe4goaDprmptFyFWzYrTxX5TwO6bzAnvYrIGUGDxpE29pTzXeBmDmgsmLOlWSgmdAT8Kwh3ujnKC3InLDoStESGARbqQ3qTkNPlxNnqXIgrsIGSmEe7pKH4RmDzELH4mUoDhqEfdOOk++ACz8MsuegdB04t89/1O/w1cDnyilFU=') 
-handler = WebhookHandler('8763f65621c328f70d1334b4d4758e46')
-GROUP_ID = 'C3dca1e6da36d110cdfc734c47180e428'  
+line_bot_api = LineBotApi(os.getenv('LINE_BOT_API'))  # 使用環境變數
+handler = WebhookHandler(os.getenv('LINE_HANDLER'))
+GROUP_ID = os.getenv('C3dca1e6da36d110cdfc734c47180e428')
 
 pending_texts = {}
 executor = concurrent.futures.ThreadPoolExecutor(max_workers=4)
@@ -90,7 +91,7 @@ def handle_text_message(event):
                 text_message = user_message
                 image_url = pending_texts[user_id].get('image_url')
 
-                if image_url:  # 確保有 image_url
+                if image_url:
                     executor.submit(upload_and_send_image, image_url, user_id, text_message)
                     line_bot_api.reply_message(
                         event.reply_token,
@@ -130,7 +131,11 @@ def handle_image_message(event):
 
         except Exception as e:
             print(f'Error processing image: {e}')
-            return  # 直接返回避免後續執行
+            line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text='圖片上傳失敗，請稍後再試。')
+            )
+            return
 
         buttons_template = ButtonsTemplate(
             title='選擇操作',
@@ -162,7 +167,7 @@ def handle_postback(event):
                 event.reply_token,
                 TextSendMessage(text="圖片已成功發送到群組。")
             )
-            del pending_texts[user_id]  # 在這裡清除狀態
+            del pending_texts[user_id]
         else:
             line_bot_api.reply_message(
                 event.reply_token,
@@ -174,7 +179,7 @@ def handle_postback(event):
             event.reply_token,
             TextSendMessage(text='請發送您要添加的文字。')
         )
-        pending_texts[user_id] = {'action': 'add_text'}  # 記錄當前狀態
+        pending_texts[user_id] = {'action': 'add_text'}
 
 def reset_pending_state(user_id):
     if user_id in pending_texts:
@@ -185,7 +190,7 @@ def upload_image_to_postimage(image_content):
     try:
         url = "https://api.imgbb.com/1/upload"
         payload = {
-            "key": "9084929272af9aef3bcbb7c7b8517f67",
+            "key": os.getenv('IMGBB_API_KEY'),  # 使用環境變數
         }
         files = {
             'image': image_content.content
@@ -193,90 +198,44 @@ def upload_image_to_postimage(image_content):
         response = requests.post(url, data=payload, files=files)
         data = response.json()
 
-        if response.status_code == 200 and data['success']:
-            imgur_url = data['data']['url']
-            print(f'Image uploaded successfully: {imgur_url}')
-            return imgur_url
+        if response.status_code == 200 and data['status'] == 200:
+            return data['data']['url']
         else:
-            print(f'Failed to upload image: {response.text}')
-            return None
+            raise Exception(f"Failed to upload image, response: {data}")
 
     except Exception as e:
-        print(f'Error uploading image: {e}')
+        print(f"Error uploading image: {e}")
         return None
 
-def upload_and_send_image(image_url, user_id, text_message=None):
-    print(f"upload_and_send_image called with image_url: {image_url} and text_message: {text_message}")
-    if not image_url:
-        print('No image URL provided. Aborting upload.')
-        return
-
-    retries = 3
-    for attempt in range(retries):
-        try:
-            send_image_to_group(image_url, user_id, text_message)
-            track_api_usage()  # 記錄成功發送 API 請求次數
-            break
-        except Exception as e:
-            print(f'Attempt {attempt + 1} failed: {e}')
-            time.sleep(2)
-    else:
-        print('Failed to send image after multiple attempts.')
-
-def send_image_to_group(image_url, user_id, text_message=None):
-    if image_url:
-        try:
-            print(f'Sending image with URL: {image_url}')
-
-            # 嘗試發送圖片
-            messages = [ImageSendMessage(
+def send_image_to_group(image_url, user_id):
+    global GROUP_ID
+    try:
+        line_bot_api.push_message(
+            GROUP_ID,
+            ImageSendMessage(
                 original_content_url=image_url,
                 preview_image_url=image_url
-            )]
-
-            if text_message:
-                messages.append(TextSendMessage(text=text_message))
-
-            response = line_bot_api.push_message(
-                GROUP_ID,
-                messages
             )
-            print(f'Successfully sent to group. Response: {response}')
+        )
+        print(f"Image sent to group {GROUP_ID}")
+        del pending_texts[user_id]
 
-            # 成功發送圖片後，通知用戶
-            line_bot_api.push_message(
-                user_id,
-                TextSendMessage(text='圖片和文字已成功發送到群組。' if text_message else '圖片已成功發送到群組。')
-            )
+    except Exception as e:
+        print(f"Error sending image to group: {e}")
 
-        except Exception as e:
-            if 'status_code=429' in str(e):
-                # 達到 API 限制，改發送圖片連結
-                print(f'API limit reached, sending image link instead: {image_url}')
-                
-                # 嘗試發送圖片連結
-                try:
-                    line_bot_api.push_message(
-                        GROUP_ID,
-                        TextSendMessage(text=f"由於達到 API 限制，請點擊以下鏈接查看圖片：{image_url}")
-                    )
-                    print(f"Link successfully sent to group: {image_url}")
-                    
-                    # 發送通知用戶，告知改發送了圖片連結
-                    line_bot_api.push_message(
-                        user_id,
-                        TextSendMessage(text=f'由於達到 API 限制，已發送圖片鏈接至群組：{image_url}')
-                    )
-                    print(f"Link successfully sent to user: {image_url}")
-                    
-                except Exception as link_error:
-                    print(f'Error sending link to group: {link_error}')
+    time.sleep(1)
+    
+def upload_and_send_image(image_url, user_id, text_message):
+    try:
+        # 在此處上傳並處理圖片和文字的結合，並將圖片發送到群組
+        line_bot_api.push_message(
+            GROUP_ID,
+            TextSendMessage(text=f"圖片網址：{image_url}\n附加的文字：{text_message}")
+        )
+        print(f"Image with text sent to group {GROUP_ID}")
 
-            else:
-                print(f'Error sending image and text to group: {e}')
-    else:
-        print('No image URL provided.')
-
+    except Exception as e:
+        print(f"Error sending image with text to group: {e}")
 
 if __name__ == "__main__":
-    app.run(port=10000)
+    socketio.run(app, port=10000)
