@@ -3,7 +3,6 @@ from gevent import monkey
 monkey.patch_all()
 
 import time  # 用於延遲操作
-
 sys.setrecursionlimit(2000)
 from flask import Flask, request, abort, jsonify
 from flask_socketio import SocketIO
@@ -48,9 +47,14 @@ def read_group_ids():
 
 # 保存新的群組 ID 到 CSV 文件
 def save_group_id(new_group_id):
+    group_ids = read_group_ids()
+    if new_group_id in group_ids:
+        return False  # 如果 ID 已存在，返回 False
+
     with open('group_id.csv', 'a') as file:
         writer = csv.writer(file)
         writer.writerow([new_group_id])
+    return True  # 如果 ID 不存在，成功保存
 
 @app.route('/callback', methods=['POST'])
 def callback():
@@ -89,12 +93,18 @@ def handle_text_message(event):
     if source_type == 'group':
         if user_message.startswith('/設定群組'):
             group_id = event.source.group_id
-            save_group_id(group_id)
-            line_bot_api.reply_message(
-                event.reply_token,
-                TextSendMessage(text=f"群組ID已新增：{group_id}")
-            )
-            print(f"Group ID added: {group_id}")
+            if save_group_id(group_id):
+                line_bot_api.reply_message(
+                    event.reply_token,
+                    TextSendMessage(text=f"群組ID已新增：{group_id}")
+                )
+                print(f"Group ID added: {group_id}")
+            else:
+                line_bot_api.reply_message(
+                    event.reply_token,
+                    TextSendMessage(text=f"群組ID {group_id} 已存在。")
+                )
+                print(f"Group ID {group_id} already exists.")
         else:
             print("Ignoring non-/設定群組 message in group.")
             return
