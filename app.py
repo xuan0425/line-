@@ -281,4 +281,4 @@ def upload_and_send_image(image_url, user_id, text_message):
     reset_pending_state(user_id)
 
 if __name__ == '__main__':
-    socketio.run(app, debug=True)
+    socketio.run(app, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
