@@ -40,21 +40,32 @@ def read_group_ids():
     try:
         with open('group_id.csv', 'r') as file:
             reader = csv.reader(file)
-            group_ids = [row[0] for row in reader]
+            group_ids = [row[0] for row in reader if row]  # 確保每行有內容
     except FileNotFoundError:
         print("CSV file not found, using default group.")
+    except Exception as e:
+        print(f"Error reading CSV file: {e}")
+    
     return group_ids
 
 # 保存新的群組 ID 到 CSV 文件
 def save_group_id(new_group_id):
     group_ids = read_group_ids()
+    if group_ids is None:
+        group_ids = []
+
     if new_group_id in group_ids:
         return False  # 如果 ID 已存在，返回 False
 
-    with open('group_id.csv', 'a') as file:
-        writer = csv.writer(file)
-        writer.writerow([new_group_id])
+    try:
+        with open('group_id.csv', 'a') as file:
+            writer = csv.writer(file)
+            writer.writerow([new_group_id])
+    except Exception as e:
+        print(f"Error writing to CSV file: {e}")
+    
     return True  # 如果 ID 不存在，成功保存
+
 
 @app.route('/callback', methods=['POST'])
 def callback():
@@ -85,10 +96,7 @@ def index():
 @handler.add(MessageEvent, message=TextMessage)
 def handle_text_message(event):
     user_message = event.message.text
-    user_id = event.source.user_id
     source_type = event.source.type
-
-    print(f"Received message: {user_message} from {source_type}")
 
     if source_type == 'group':
         if user_message.startswith('/設定群組'):
