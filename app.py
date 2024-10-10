@@ -160,9 +160,27 @@ def handle_image_message(event):
             if image_url:
                 print(f'Image successfully uploaded to {image_url}')
                 pending_texts[user_id] = {'action': 'add_text', 'image_url': image_url}
+                
+                # 這裡添加選擇操作的邏輯
+                buttons_template = ButtonsTemplate(
+                    title='選擇操作',
+                    text='您希望如何處理這張圖片？',
+                    actions=[
+                        PostbackAction(label='直接發送', data='send_image'),
+                        PostbackAction(label='添加文字', data='add_text')
+                    ]
+                )
+                template_message = TemplateSendMessage(
+                    alt_text='選擇操作',
+                    template=buttons_template
+                )
+                line_bot_api.reply_message(event.reply_token, template_message)
             else:
-                raise Exception("Image upload failed")
-
+                line_bot_api.reply_message(
+                    event.reply_token,
+                    TextSendMessage(text='找不到圖片，請重新上傳。')
+                )
+        
         except Exception as e:
             print(f'Error processing image: {e}')
             line_bot_api.reply_message(
@@ -170,23 +188,6 @@ def handle_image_message(event):
                 TextSendMessage(text='圖片上傳失敗，請稍後再試。')
             )
             return
-
-        buttons_template = ButtonsTemplate(
-            title='選擇操作',
-            text='您希望如何處理這張圖片？',
-            actions=[
-                PostbackAction(label='直接發送', data='send_image'),
-                PostbackAction(label='添加文字', data='add_text')
-            ]
-        )
-        template_message = TemplateSendMessage(
-            alt_text='選擇操作',
-            template=buttons_template
-        )
-        line_bot_api.reply_message(
-            event.reply_token,
-            template_message
-        )
 
 @handler.add(PostbackEvent)
 def handle_postback(event):
@@ -196,9 +197,7 @@ def handle_postback(event):
     if postback_data == 'send_image':
         if user_id in pending_texts and 'image_url' in pending_texts[user_id]:
             image_url = pending_texts[user_id]['image_url']
-
-            # 延遲3秒後發送
-            time.sleep(3)
+            socketio.sleep(3)  # 使用 socketio 的 sleep 而非 time.sleep
 
             send_image_to_groups(image_url, user_id)
             line_bot_api.reply_message(
