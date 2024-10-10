@@ -66,7 +66,6 @@ def save_group_id(new_group_id):
     
     return True  # 如果 ID 不存在，成功保存
 
-
 @app.route('/callback', methods=['POST'])
 def callback():
     signature = request.headers.get('X-Line-Signature')
@@ -97,6 +96,7 @@ def index():
 def handle_text_message(event):
     user_message = event.message.text
     source_type = event.source.type
+    user_id = event.source.user_id  # 確保 user_id 被正確初始化
 
     if source_type == 'group':
         if user_message.startswith('/設定群組'):
@@ -125,7 +125,7 @@ def handle_text_message(event):
                 image_url = pending_texts[user_id].get('image_url')
 
                 if image_url:
-                    executor.submit(upload_and_send_image, image_url, user_id, text_message)
+                    executor.submit(upload_and_send_image, image_url, user_id, text_message)  # 傳遞 user_id
                     line_bot_api.reply_message(
                         event.reply_token,
                         TextSendMessage(text='文字已成功添加。')
@@ -280,5 +280,5 @@ def upload_and_send_image(image_url, user_id, text_message):
             print(f"Error sending image with text to group {group_id}: {e}")
     reset_pending_state(user_id)
 
-if __name__ == "__main__":
-    socketio.run(app, port=10000)
+if __name__ == '__main__':
+    socketio.run(app, debug=True)
